@@ -1,1 +1,84 @@
-Hello World!
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="container">
+        <h1 class="display-4">🌍 Welcome to Trip-Django</h1>
+        <p class="lead">Your AI-powered travel assistant for personalized trip planning</p>
+        {% if not user.is_authenticated %}
+            <div class="mt-4">
+                <a href="{% url 'register' %}" class="btn btn-light btn-lg me-3">Get Started</a>
+                <a href="{% url 'login' %}" class="btn btn-outline-light btn-lg">Login</a>
+            </div>
+        {% else %}
+            <div class="mt-4">
+                <a href="{% url 'chatbot' %}" class="btn btn-light btn-lg me-3">Chat with AI</a>
+                <a href="{% url 'trip_request_create' %}" class="btn btn-outline-light btn-lg">Plan a Trip</a>
+            </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="py-5">
+    <div class="container">
+        <div class="row text-center">
+            <div class="col-md-4 mb-4">
+                <div class="card feature-card h-100">
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <i class="fas fa-robot" style="font-size: 3rem; color: #007bff;"></i>
+                        </div>
+                        <h5 class="card-title">AI Chatbot</h5>
+                        <p class="card-text">Get instant travel advice and recommendations from our intelligent chatbot assistant.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card feature-card h-100">
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <i class="fas fa-map-marked-alt" style="font-size: 3rem; color: #28a745;"></i>
+                        </div>
+                        <h5 class="card-title">Trip Planning</h5>
+                        <p class="card-text">Create personalized travel itineraries based on your budget, preferences, and duration.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card feature-card h-100">
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <i class="fas fa-file-pdf" style="font-size: 3rem; color: #dc3545;"></i>
+                        </div>
+                        <h5 class="card-title">PDF Reports</h5>
+                        <p class="card-text">Download comprehensive travel guides and itineraries in PDF format.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Quick Chat Section -->
+{% if user.is_authenticated %}
+<section class="bg-light py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Quick Chat</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>Have a quick question about travel? Ask our AI assistant!</p>
+                        <a href="{% url 'chatbot' %}" class="btn btn-primary">Start Chatting</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endif %}
+{% endblock %}

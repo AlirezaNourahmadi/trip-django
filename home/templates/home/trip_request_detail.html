@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h2>Trip Request Details</h2>
+  <p>Destination: {{ trip_request.destination }}</p>
+  <p>Duration: {{ trip_request.duration }} days</p>
+  <p>Budget: ${{ trip_request.budget }}</p>
+  <p>Created: {{ trip_request.created_at }}</p>
+  
+  {% if plan %}
+    <h3>Generated Plan</h3>
+    <p>{{ plan.content }}</p>
+    {% if plan.pdf_file %}
+      <a href="{{ plan.pdf_file.url }}">Download PDF</a>
+    {% endif %}
+  {% else %}
+    <p>Plan not yet generated.</p>
+  {% endif %}
+  
+  <a href="{% url 'home' %}">Back to Home</a>
+{% endblock %}

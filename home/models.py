@@ -30,7 +30,33 @@ class GeneratedPlan(models.Model):
     content = models.TextField()
     pdf_file = models.FileField(upload_to='trip_pdfs/', blank=True, null=True)
     
-    
-    
     def __str__(self):
         return f"GeneratedPlan for request #{self.trip_request.id}"
+
+class ChatMessage(models.Model):
+    MESSAGE_TYPES = [
+        ('text', 'Text'),
+        ('image', 'Image'),
+        ('file', 'File'),
+        ('voice', 'Voice'),
+    ]
+    
+    SENDER_CHOICES = [
+        ('user', 'User'),
+        ('bot', 'Bot'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chat_messages', null=True, blank=True)
+    session_id = models.CharField(max_length=255, blank=True, null=True)  # For anonymous users
+    sender = models.CharField(max_length=10, choices=SENDER_CHOICES)
+    message_type = models.CharField(max_length=10, choices=MESSAGE_TYPES, default='text')
+    content = models.TextField(blank=True, null=True)
+    file_attachment = models.FileField(upload_to='chat_attachments/', blank=True, null=True)
+    voice_attachment = models.FileField(upload_to='chat_voice/', blank=True, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['timestamp']
+    
+    def __str__(self):
+        return f"{self.sender}: {self.content[:50]}..." if self.content else f"{self.sender}: {self.message_type} message"
