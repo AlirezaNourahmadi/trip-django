@@ -245,14 +245,9 @@ def log_response(
         else:
             level = "info"
 
-    escaped_args = tuple(
-        a.encode("unicode_escape").decode("ascii") if isinstance(a, str) else a
-        for a in args
-    )
-
     getattr(logger, level)(
         message,
-        *escaped_args,
+        *args,
         extra={
             "status_code": response.status_code,
             "request": request,

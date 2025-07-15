@@ -51,10 +51,15 @@ class DatabaseFeatures(BaseDatabaseFeatures):
         # Date/DateTime fields and timedeltas.
         "expressions.tests.FTimeDeltaTests.test_mixed_comparisons1",
     }
+    create_test_table_with_composite_primary_key = """
+        CREATE TABLE test_table_composite_pk (
+            column_1 INTEGER NOT NULL,
+            column_2 INTEGER NOT NULL,
+            PRIMARY KEY(column_1, column_2)
+        )
+    """
     insert_test_table_with_defaults = 'INSERT INTO {} ("null") VALUES (1)'
     supports_default_keyword_in_insert = False
-    supports_unlimited_charfield = True
-    supports_tuple_lookups = False
 
     @cached_property
     def django_test_skips(self):
@@ -95,7 +100,7 @@ class DatabaseFeatures(BaseDatabaseFeatures):
                         "servers.tests.LiveServerTestCloseConnectionTest."
                         "test_closes_connections",
                     },
-                    "For SQLite in-memory tests, closing the connection destroys "
+                    "For SQLite in-memory tests, closing the connection destroys"
                     "the database.": {
                         "test_utils.tests.AssertNumQueriesUponConnectionTests."
                         "test_ignores_connection_configuration_queries",
@@ -114,16 +119,6 @@ class DatabaseFeatures(BaseDatabaseFeatures):
                     "SQLite databases": {
                         "backends.sqlite.test_creation.TestDbSignatureTests."
                         "test_get_test_db_clone_settings_not_supported",
-                    },
-                }
-            )
-        if Database.sqlite_version_info < (3, 47):
-            skips.update(
-                {
-                    "SQLite does not parse escaped double quotes in the JSON path "
-                    "notation": {
-                        "model_fields.test_jsonfield.TestQuerying."
-                        "test_lookups_special_chars_double_quotes",
                     },
                 }
             )

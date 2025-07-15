@@ -1,5 +1,4 @@
 "File-based cache backend"
-
 import glob
 import os
 import pickle

@@ -67,6 +67,7 @@ class ArrayField(CheckFieldDefaultMixin, Field):
                 )
             )
         else:
+            # Remove the field name checks as they are not needed here.
             base_checks = self.base_field.check()
             if base_checks:
                 error_messages = "\n    ".join(
@@ -168,7 +169,7 @@ class ArrayField(CheckFieldDefaultMixin, Field):
             else:
                 obj = AttributeSetter(base_field.attname, val)
                 values.append(base_field.value_to_string(obj))
-        return json.dumps(values, ensure_ascii=False)
+        return json.dumps(values)
 
     def get_transform(self, name):
         transform = super().get_transform(name)

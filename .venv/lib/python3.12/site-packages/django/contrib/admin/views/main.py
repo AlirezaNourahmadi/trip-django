@@ -395,7 +395,7 @@ class ChangeList:
         ordering = list(
             self.model_admin.get_ordering(request) or self._get_default_ordering()
         )
-        if params.get(ORDER_VAR):
+        if ORDER_VAR in params:
             # Clear ordering and used params
             ordering = []
             order_params = params[ORDER_VAR].split(".")

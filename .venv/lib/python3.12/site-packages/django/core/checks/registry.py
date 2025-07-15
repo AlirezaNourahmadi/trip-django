@@ -12,7 +12,6 @@ class Tags:
     admin = "admin"
     async_support = "async_support"
     caches = "caches"
-    commands = "commands"
     compatibility = "compatibility"
     database = "database"
     files = "files"

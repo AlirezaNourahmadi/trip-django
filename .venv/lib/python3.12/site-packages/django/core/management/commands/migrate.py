@@ -15,12 +15,17 @@ from django.utils.text import Truncator
 
 
 class Command(BaseCommand):
-    autodetector = MigrationAutodetector
     help = (
         "Updates database schema. Manages both apps with migrations and those without."
     )
+    requires_system_checks = []
 
     def add_arguments(self, parser):
+        parser.add_argument(
+            "--skip-checks",
+            action="store_true",
+            help="Skip system checks.",
+        )
         parser.add_argument(
             "app_label",
             nargs="?",
@@ -89,13 +94,12 @@ class Command(BaseCommand):
             help="Delete nonexistent migrations from the django_migrations table.",
         )
 
-    def get_check_kwargs(self, options):
-        kwargs = super().get_check_kwargs(options)
-        return {**kwargs, "databases": [options["database"]]}
-
     @no_translations
     def handle(self, *args, **options):
         database = options["database"]
+        if not options["skip_checks"]:
+            self.check(databases=[database])
+
         self.verbosity = options["verbosity"]
         self.interactive = options["interactive"]
 
@@ -325,7 +329,7 @@ class Command(BaseCommand):
                 self.stdout.write("  No migrations to apply.")
                 # If there's changes that aren't in migrations yet, tell them
                 # how to fix it.
-                autodetector = self.autodetector(
+                autodetector = MigrationAutodetector(
                     executor.loader.project_state(),
                     ProjectState.from_apps(apps),
                 )

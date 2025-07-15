@@ -99,23 +99,18 @@ class JSONField(CheckFieldDefaultMixin, Field):
     def get_db_prep_value(self, value, connection, prepared=False):
         if not prepared:
             value = self.get_prep_value(value)
+        if isinstance(value, expressions.Value) and isinstance(
+            value.output_field, JSONField
+        ):
+            value = value.value
+        elif hasattr(value, "as_sql"):
+            return value
         return connection.ops.adapt_json_value(value, self.encoder)
 
     def get_db_prep_save(self, value, connection):
-        # This slightly involved logic is to allow for `None` to be used to
-        # store SQL `NULL` while `Value(None, JSONField())` can be used to
-        # store JSON `null` while preventing compilable `as_sql` values from
-        # making their way to `get_db_prep_value`, which is what the `super()`
-        # implementation does.
         if value is None:
             return value
-        if (
-            isinstance(value, expressions.Value)
-            and value.value is None
-            and isinstance(value.output_field, JSONField)
-        ):
-            value = None
-        return super().get_db_prep_save(value, connection)
+        return self.get_db_prep_value(value, connection)
 
     def get_transform(self, name):
         transform = super().get_transform(name)
@@ -244,9 +239,7 @@ class HasKeyLookup(PostgresOperatorLookup):
         )
 
     def as_oracle(self, compiler, connection):
-        # Use a custom delimiter to prevent the JSON path from escaping the SQL
-        # literal. See comment in KeyTransform.
-        template = "JSON_EXISTS(%s, q'\uffff%s\uffff')"
+        template = "JSON_EXISTS(%s, '%s')"
         sql_parts = []
         params = []
         for lhs_sql, lhs_params, rhs_json_path in self._as_sql_parts(
@@ -386,24 +379,10 @@ class KeyTransform(Transform):
         json_path = compile_json_path(key_transforms)
         if connection.features.supports_primitives_in_json_field:
             sql = (
-                "COALESCE("
-                "JSON_VALUE(%s, q'\uffff%s\uffff'),"
-                "JSON_QUERY(%s, q'\uffff%s\uffff' DISALLOW SCALARS)"
-                ")"
+                "COALESCE(JSON_VALUE(%s, '%s'), JSON_QUERY(%s, '%s' DISALLOW SCALARS))"
             )
         else:
-            sql = (
-                "COALESCE("
-                "JSON_QUERY(%s, q'\uffff%s\uffff'),"
-                "JSON_VALUE(%s, q'\uffff%s\uffff')"
-                ")"
-            )
-        # Add paths directly into SQL because path expressions cannot be passed
-        # as bind variables on Oracle. Use a custom delimiter to prevent the
-        # JSON path from escaping the SQL literal. Each key in the JSON path is
-        # passed through json.dumps() with ensure_ascii=True (the default),
-        # which converts the delimiter into the escaped \uffff format. This
-        # ensures that the delimiter is not present in the JSON path.
+            sql = "COALESCE(JSON_QUERY(%s, '%s'), JSON_VALUE(%s, '%s'))"
         return sql % ((lhs, json_path) * 2), tuple(params) * 2
 
     def as_postgresql(self, compiler, connection):

@@ -278,6 +278,10 @@ class BaseDatabaseFeatures:
     create_test_procedure_without_params_sql = None
     create_test_procedure_with_int_param_sql = None
 
+    # SQL to create a table with a composite primary key for use by the Django
+    # test suite.
+    create_test_table_with_composite_primary_key = None
+
     # Does the backend support keyword parameters for cursor.callproc()?
     supports_callproc_kwargs = False
 
@@ -364,9 +368,6 @@ class BaseDatabaseFeatures:
     # Does the backend support unlimited character columns?
     supports_unlimited_charfield = False
 
-    # Does the backend support native tuple lookups (=, >, <, IN)?
-    supports_tuple_lookups = True
-
     # Collation names for use by the Django test suite.
     test_collations = {
         "ci": None,  # Case-insensitive.
@@ -380,9 +381,6 @@ class BaseDatabaseFeatures:
 
     # SQL to create a model instance using the database defaults.
     insert_test_table_with_defaults = None
-
-    # Does the Round() database function round to even?
-    rounds_to_even = False
 
     # A set of dotted paths to tests in Django's test suite that are expected
     # to fail on this database.

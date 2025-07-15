@@ -11,6 +11,11 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,7 +25,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-1_$$s_#@ylxjaqw1bp6!j+ft@s^8r4-$5ee399e_c3*z34rs76"
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', "django-insecure-1_$$s_#@ylxjaqw1bp6!j+ft@s^8r4-$5ee399e_c3*z34rs76")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -77,12 +82,11 @@ WSGI_APPLICATION = "main.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "Hatef",
-        "USER": "postgres",
-        "PASSWORD": "138067sh",
-        "HOST": "localhost",
-        "PORT": "5432",
-        
+        "NAME": os.getenv('DB_NAME', 'Hatef'),
+        "USER": os.getenv('DB_USER', 'postgres'),
+        "PASSWORD": os.getenv('DB_PASSWORD', '138067sh'),
+        "HOST": os.getenv('DB_HOST', 'localhost'),
+        "PORT": os.getenv('DB_PORT', '5432'),
     }
 }
 
@@ -133,3 +137,9 @@ AUTH_USER_MODEL = "home.User"
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# OpenAI Configuration
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4-turbo-preview')
+MAX_TOKENS = int(os.getenv('MAX_TOKENS', '1000'))
+TEMPERATURE = float(os.getenv('TEMPERATURE', '0.7'))

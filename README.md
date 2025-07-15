@@ -119,27 +119,26 @@ For voice features to work, you'll need to grant microphone permissions when pro
 - **Documents**: .pdf, .doc, .docx, .txt, .csv, .xlsx
 - **Audio**: .mp3, .wav, .ogg, .m4a
 
-## LLM Integration
+## GPT-4 Integration ✅
 
-The current chatbot uses a simple keyword-based response system. To integrate with a real LLM (like OpenAI GPT, Claude, etc.):
+The chatbot is now fully integrated with **OpenAI GPT-4 Turbo** for intelligent travel assistance!
 
-1. Install the LLM SDK (e.g., `pip install openai`)
-2. Update the `generate_ai_response` method in `home/views.py`
-3. Add your API keys to environment variables
-4. Implement proper prompt engineering for travel-related queries
+### Features:
+- **GPT-4 Turbo**: Latest OpenAI model for superior responses
+- **Vision Support**: Can analyze uploaded images and identify locations
+- **Context Awareness**: Maintains conversation history for better responses
+- **Specialized Prompts**: Optimized for travel planning and recommendations
+- **Fallback System**: Graceful handling of API errors
 
-Example for OpenAI integration:
-```python
-import openai
+### Configuration:
+The AI service is configured in `home/services.py` with:
+- Professional travel assistant prompts
+- Image analysis capabilities
+- Chat history context
+- Error handling and fallbacks
 
-def generate_ai_response(self, message, file_attachment, voice_attachment):
-    # Your OpenAI API integration here
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "user", "content": message}]
-    )
-    return response.choices[0].message.content
-```
+### API Usage:
+The system uses environment variables for secure API key management. All OpenAI interactions are handled through the `AIService` class.
 
 ## Production Deployment
 
