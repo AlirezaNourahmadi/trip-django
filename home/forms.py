@@ -8,11 +8,16 @@ User = get_user_model()
 class TripPlanRequestForm(forms.ModelForm):
     class Meta:
         model = TripPlanRequest
-        fields = ['destination', 'duration', 'budget', 'uploaded_file']
+        fields = ['destination', 'duration', 'budget', 'number_of_travelers', 'interests', 'daily_budget', 'transportation_preferences', 'experience_style', 'uploaded_file']
         widgets = {
             'destination': forms.Select(attrs={'class': 'form-control'}),
             'duration': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
             'budget': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'number_of_travelers': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
+            'interests': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'daily_budget': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'transportation_preferences': forms.TextInput(attrs={'class': 'form-control'}),
+            'experience_style': forms.TextInput(attrs={'class': 'form-control'}),
             'uploaded_file': forms.FileInput(attrs={'class': 'form-control'}),
         }
 

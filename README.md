@@ -32,6 +32,7 @@ A Django-based travel planning application with an AI-powered chatbot that suppo
 - Python 3.8+
 - PostgreSQL (or change to SQLite for development)
 - pip (Python package manager)
+- **reportlab** (for PDF generation)
 
 ### Installation
 

@@ -141,5 +141,5 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # OpenAI Configuration
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4-turbo-preview')
-MAX_TOKENS = int(os.getenv('MAX_TOKENS', '1000'))
+MAX_TOKENS = int(os.getenv('MAX_TOKENS', '10000'))
 TEMPERATURE = float(os.getenv('TEMPERATURE', '0.7'))

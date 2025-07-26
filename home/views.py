@@ -1,5 +1,6 @@
 from django.shortcuts import render, get_object_or_404
 from django.views import View
+from .services import generate_trip_plan_pdf
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.auth import login
@@ -33,6 +34,29 @@ class TripRequestCreateView(LoginRequiredMixin, View):
             trip_request = form.save(commit=False)
             trip_request.user = request.user
             trip_request.save()
+
+            # Generate trip plan text using AIService
+            
+            initial_trip_plan = ai_service.generate_trip_plan(trip_request)
+            
+            # Enhance the trip plan with location images, schedules, and costs
+            trip_plan_text = ai_service.generate_enhanced_response(
+                initial_plan=initial_trip_plan,
+                user=request.user if request.user.is_authenticated else None,
+                destination=trip_request.destination.name,
+                number_of_travelers=trip_request.number_of_travelers
+            )
+
+            # Generate PDF file from trip plan text
+            pdf_content = generate_trip_plan_pdf(trip_plan_text)
+
+            # Save GeneratedPlan instance
+            from .models import GeneratedPlan
+            generated_plan, created = GeneratedPlan.objects.get_or_create(trip_request=trip_request)
+            generated_plan.content = trip_plan_text
+            generated_plan.pdf_file.save(f"trip_plan_{trip_request.id}.pdf", pdf_content)
+            generated_plan.save()
+
             return HttpResponseRedirect(reverse("trip_request_detail", args=[trip_request.pk]))
         return render(request, "home/trip_request_form.html", {"form": form})
 
