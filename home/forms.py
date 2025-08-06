@@ -1,16 +1,25 @@
 from django import forms
-from .models import TripPlanRequest, Destination
+from .models import TripPlanRequest
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
 class TripPlanRequestForm(forms.ModelForm):
+    # Hidden fields for Google Places data
+    destination_country = forms.CharField(widget=forms.HiddenInput(), required=False)
+    destination_place_id = forms.CharField(widget=forms.HiddenInput(), required=False)
+    
     class Meta:
         model = TripPlanRequest
-        fields = ['destination', 'duration', 'budget', 'number_of_travelers', 'interests', 'daily_budget', 'transportation_preferences', 'experience_style', 'uploaded_file']
+        fields = ['destination', 'destination_country', 'destination_place_id', 'duration', 'budget', 'number_of_travelers', 'interests', 'daily_budget', 'transportation_preferences', 'experience_style', 'uploaded_file']
         widgets = {
-            'destination': forms.Select(attrs={'class': 'form-control'}),
+            'destination': forms.TextInput(attrs={
+                'class': 'form-control',
+                'id': 'destination-input',
+                'placeholder': 'Start typing a destination...',
+                'autocomplete': 'off'
+            }),
             'duration': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
             'budget': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'number_of_travelers': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),

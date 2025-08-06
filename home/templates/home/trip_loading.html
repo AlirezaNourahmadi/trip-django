@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generating Your Trip Plan - Trip Django</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        
+        .loading-container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 90%;
+        }
+        
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 6px solid rgba(255, 255, 255, 0.3);
+            border-top: 6px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .loading-steps {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+        }
+        
+        .loading-steps li {
+            padding: 8px 0;
+            opacity: 0.6;
+            transition: opacity 0.3s ease;
+        }
+        
+        .loading-steps li.active {
+            opacity: 1;
+            font-weight: bold;
+        }
+        
+        .loading-steps li.completed {
+            opacity: 1;
+            color: #4ade80;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4ade80, #22c55e);
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        
+        .destination-info {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .destination-info h3 {
+            margin: 0 0 10px;
+            font-size: 18px;
+        }
+        
+        .trip-details {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+        }
+        
+        .error-message {
+            display: none;
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-container">
+        <div class="loading-spinner"></div>
+        <h2 class="loading-title">Creating Your Perfect Trip Plan</h2>
+        
+        <div class="destination-info">
+            <h3>{{ destination_name }}</h3>
+            <div class="trip-details">
+                <span>{{ duration }} days</span>
+                <span>{{ travelers }} travelers</span>
+                <span>${{ budget }}</span>
+            </div>
+        </div>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        
+        <ul class="loading-steps">
+            <li id="step1" class="active">🧠 Analyzing your preferences...</li>
+            <li id="step2">🗺️ Searching locations and attractions...</li>
+            <li id="step3">💰 Calculating costs and budgets...</li>
+            <li id="step4">📅 Creating day-by-day itinerary...</li>
+            <li id="step5">🔗 Adding Google Maps links...</li>
+            <li id="step6">📄 Generating PDF document...</li>
+        </ul>
+        
+        <div class="error-message" id="errorMessage">
+            <strong>Oops!</strong> Something went wrong. Redirecting you back...
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 0;
+        const steps = ['step1', 'step2', 'step3', 'step4', 'step5', 'step6'];
+        const tripRequestId = {{ trip_request_id }};
+        let checkCount = 0;
+        const maxChecks = 60; // 60 checks * 2 seconds = 2 minutes timeout
+        
+        function updateProgress() {
+            currentStep++;
+            const progressPercent = (currentStep / steps.length) * 100;
+            document.getElementById('progressFill').style.width = progressPercent + '%';
+            
+            // Update step status
+            if (currentStep > 1) {
+                const prevStep = document.getElementById(steps[currentStep - 2]);
+                prevStep.classList.remove('active');
+                prevStep.classList.add('completed');
+            }
+            
+            if (currentStep <= steps.length) {
+                const currentStepEl = document.getElementById(steps[currentStep - 1]);
+                if (currentStepEl) {
+                    currentStepEl.classList.add('active');
+                }
+            }
+        }
+        
+        function checkTripStatus() {
+            fetch(`/api/trip-status/${tripRequestId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'completed') {
+                        // Complete all steps
+                        while (currentStep < steps.length) {
+                            updateProgress();
+                        }
+                        
+                        // Redirect to trip detail page
+                        setTimeout(() => {
+                            window.location.href = `/trip_request/${tripRequestId}/`;
+                        }, 1000);
+                    } else if (data.status === 'error') {
+                        showError();
+                    } else {
+                        // Continue checking
+                        if (checkCount < maxChecks) {
+                            checkCount++;
+                            setTimeout(checkTripStatus, 2000);
+                            
+                            // Update progress periodically
+                            if (checkCount % 10 === 0 && currentStep < steps.length - 1) {
+                                updateProgress();
+                            }
+                        } else {
+                            showError();
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking trip status:', error);
+                    if (checkCount < maxChecks) {
+                        checkCount++;
+                        setTimeout(checkTripStatus, 3000);
+                    } else {
+                        showError();
+                    }
+                });
+        }
+        
+        function showError() {
+            document.getElementById('errorMessage').style.display = 'block';
+            setTimeout(() => {
+                window.location.href = '/trip_request/';
+            }, 3000);
+        }
+        
+        // Start checking trip status
+        setTimeout(checkTripStatus, 2000);
+        
+        // Update progress periodically for visual feedback
+        const progressInterval = setInterval(() => {
+            if (currentStep < steps.length - 1) {
+                updateProgress();
+            } else {
+                clearInterval(progressInterval);
+            }
+        }, 3000);
+    </script>
+</body>
+</html>

@@ -4,11 +4,125 @@ from django.conf import settings
 from openai import OpenAI
 import logging
 import io
-from reportlab.lib.pagesizes import letter
+import re
+import urllib.parse
+import googlemaps
+from reportlab.lib.pagesizes import letter, A4
 from reportlab.pdfgen import canvas
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+from reportlab.lib.units import inch
+from reportlab.lib.colors import blue, black
 from django.core.files.base import ContentFile
+from concurrent.futures import ThreadPoolExecutor
+import asyncio
 from .models import UserTripHistory
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
+from django.core.files.base import ContentFile
+
+
+
 logger = logging.getLogger(__name__)
+
+class GoogleMapsService:
+    """Service for Google Maps API integration"""
+    
+    def __init__(self):
+        self.gmaps = googlemaps.Client(key=settings.GOOGLE_MAPS_API_KEY)
+    
+    def get_place_details(self, location_name, destination_city=None):
+        """Get place details including coordinates and place_id"""
+        try:
+            # Search for the place
+            query = f"{location_name}"
+            if destination_city:
+                query += f", {destination_city}"
+            
+            places_result = self.gmaps.places(query=query)
+            
+            if places_result['results']:
+                place = places_result['results'][0]
+                return {
+                    'place_id': place.get('place_id'),
+                    'name': place.get('name'),
+                    'formatted_address': place.get('formatted_address'),
+                    'location': place.get('geometry', {}).get('location', {}),
+                    'rating': place.get('rating'),
+                    'types': place.get('types', [])
+                }
+        except Exception as e:
+            logger.error(f"Error getting place details for {location_name}: {e}")
+        return None
+    
+    def generate_google_maps_link(self, location_name, destination_city=None):
+        """Generate Google Maps link for a location"""
+        try:
+            place_details = self.get_place_details(location_name, destination_city)
+            if place_details and place_details.get('place_id'):
+                # Create a Google Maps link using place_id
+                return f"https://maps.google.com/?q=place_id:{place_details['place_id']}"
+            else:
+                # Fallback to search-based link
+                query = urllib.parse.quote(f"{location_name} {destination_city or ''}")
+                return f"https://maps.google.com/?q={query}"
+        except Exception as e:
+            logger.error(f"Error generating Google Maps link for {location_name}: {e}")
+            # Fallback to simple search link
+            query = urllib.parse.quote(f"{location_name} {destination_city or ''}")
+            return f"https://maps.google.com/?q={query}"
+    
+    def extract_locations_from_text(self, text):
+        """Extract potential location names from text using regex patterns"""
+        # Common patterns for locations in travel itineraries
+        patterns = [
+            r'(?:visit|go to|explore|see|at|near)\s+([A-Z][a-zA-Z\s]+(?:Museum|Park|Palace|Temple|Church|Cathedral|Market|Beach|Square|Tower|Bridge|Garden|Gallery|Stadium|Airport|Station|Restaurant|Café|Hotel))',
+            r'([A-Z][a-zA-Z\s]+(?:Museum|Park|Palace|Temple|Church|Cathedral|Market|Beach|Square|Tower|Bridge|Garden|Gallery|Stadium|Airport|Station))',
+            r'\b([A-Z][a-zA-Z]+(?:\s[A-Z][a-zA-Z]+)*\s(?:Street|Avenue|Road|Boulevard|Lane))\b',
+            r'\b([A-Z][a-zA-Z\s]+(?:Restaurant|Café|Hotel|Inn|Lodge))\b'
+        ]
+        
+        locations = set()
+        for pattern in patterns:
+            matches = re.findall(pattern, text, re.IGNORECASE)
+            for match in matches:
+                if len(match.strip()) > 3:  # Filter out very short matches
+                    locations.add(match.strip())
+        
+        return list(locations)
+    
+    def get_place_suggestions(self, query, limit=10):
+        """Get place suggestions from Google Places API"""
+        try:
+            # Use Google Places API autocomplete
+            autocomplete_result = self.gmaps.places_autocomplete(
+                input_text=query,
+                types=['(cities)'],  # Focus on cities and regions
+                language='en'
+            )
+            
+            suggestions = []
+            for prediction in autocomplete_result[:limit]:
+                suggestion = {
+                    'place_id': prediction.get('place_id'),
+                    'description': prediction.get('description'),
+                    'main_text': prediction.get('structured_formatting', {}).get('main_text', ''),
+                    'secondary_text': prediction.get('structured_formatting', {}).get('secondary_text', ''),
+                    'types': prediction.get('types', [])
+                }
+                suggestions.append(suggestion)
+            
+            return suggestions
+            
+        except Exception as e:
+            logger.error(f"Error getting place suggestions: {e}")
+            return []
+
+# Initialize Google Maps service
+gmaps_service = GoogleMapsService()
 
 class AIService:
     """Service class for handling OpenAI GPT-4 interactions"""
@@ -59,7 +173,8 @@ Always maintain a friendly, professional tone and focus specifically on travel-r
         prompt = f"""
 You are a travel assistant AI. Create a detailed trip plan based on the following user inputs:
 
-Destination: {trip_request.destination.name}
+Destination: {trip_request.destination}
+Country: {trip_request.destination_country or 'Not specified'}
 Duration: {trip_request.duration} days
 Budget: {trip_request.budget}
 Number of travelers: {trip_request.number_of_travelers}
@@ -349,21 +464,316 @@ Please provide a day-by-day itinerary with recommendations for activities, dinin
                 return "Hello! I'm your AI travel assistant, and I'm excited to help you plan an amazing trip! I can assist with destinations, budgets, itineraries, accommodations, flights, activities, and much more. What aspect of travel planning would you like to explore today?"
         
         return "I'm here to help with all your travel planning needs! Whether you're looking for destination ideas, budget advice, itinerary planning, or specific travel tips, just let me know what you'd like to explore!"
-def generate_trip_plan_pdf(trip_plan_text):
-    """Generate a PDF file from the trip plan text"""
+    
+    def generate_contextual_response(self, message, trip_context, file_attachment=None, chat_history=None, user=None):
+        """Generate AI response with trip context for personalized assistance"""
+        try:
+            # Build context-aware system prompt
+            contextual_prompt = f"""
+            You are an expert travel assistant AI for Trip-Django. You are currently helping a user with their specific trip request.
+            
+            TRIP CONTEXT:
+            - Destination: {trip_context.get('destination')} ({trip_context.get('country')})
+            - Duration: {trip_context.get('duration')} days
+            - Budget: ${trip_context.get('budget')}
+            - Number of travelers: {trip_context.get('number_of_travelers')}
+            - Interests: {trip_context.get('interests', 'Not specified')}
+            - Daily budget: ${trip_context.get('daily_budget', 'Not specified')}
+            - Transportation preferences: {trip_context.get('transportation_preferences', 'Not specified')}
+            - Experience style: {trip_context.get('experience_style', 'Not specified')}
+            - Trip request ID: {trip_context.get('trip_id')}
+            - Has generated plan: {trip_context.get('has_generated_plan')}
+            
+            {f"EXISTING PLAN PREVIEW: {trip_context.get('generated_plan_content', '')}" if trip_context.get('has_generated_plan') else ""}
+            
+            Use this context to provide personalized, specific advice about their trip. You can:
+            - Suggest modifications to their existing plan
+            - Answer questions about their destination
+            - Help optimize their budget and itinerary
+            - Provide local insights and tips
+            - Assist with booking strategies
+            - Address any concerns about their trip
+            
+            Always reference their specific trip details when relevant and provide actionable advice.
+            """
+            
+            messages = [{"role": "system", "content": contextual_prompt}]
+            
+            # Add chat history if provided (last 10 messages for context)
+            if chat_history and len(chat_history) > 0:
+                recent_messages = list(chat_history)[-10:] if len(chat_history) > 10 else list(chat_history)
+                for chat_msg in recent_messages:
+                    role = "user" if chat_msg.sender == "user" else "assistant"
+                    if chat_msg.content:
+                        messages.append({"role": role, "content": chat_msg.content})
+            
+            # Handle user message and attachments
+            user_content = []
+            
+            if message:
+                user_content.append({"type": "text", "text": message})
+            
+            # Handle image attachments
+            if file_attachment and self._is_image(file_attachment):
+                try:
+                    image_data = self._encode_image(file_attachment)
+                    user_content.append({
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{image_data}",
+                            "detail": "low"
+                        }
+                    })
+                    if not message:
+                        user_content.append({
+                            "type": "text", 
+                            "text": "I've uploaded an image related to my trip. Can you help me with this?"
+                        })
+                except Exception as e:
+                    logger.error(f"Error processing image: {e}")
+                    return "I had trouble processing your image. Could you try uploading it again?"
+            
+            # Handle other file attachments
+            elif file_attachment:
+                if not message:
+                    user_content.append({
+                        "type": "text",
+                        "text": f"I've uploaded a file ({file_attachment.name}) related to my trip. Can you help me with this?"
+                    })
+                else:
+                    user_content.append({
+                        "type": "text",
+                        "text": f"{message} (Note: I also uploaded {file_attachment.name})"
+                    })
+            
+            # If no content, provide default message
+            if not user_content:
+                user_content.append({
+                    "type": "text",
+                    "text": "I need help with my trip planning. Can you assist me?"
+                })
+            
+            messages.append({"role": "user", "content": user_content})
+            
+            # Make API call to OpenAI
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                max_tokens=self.max_tokens,
+                temperature=self.temperature,
+                top_p=1,
+                frequency_penalty=0,
+                presence_penalty=0
+            )
+            
+            return response.choices[0].message.content.strip()
+            
+        except Exception as e:
+            logger.error(f"OpenAI API error in contextual response: {e}")
+            return self._get_contextual_fallback_response(message, trip_context)
+    
+    def _get_contextual_fallback_response(self, message, trip_context):
+        """Provide contextual fallback response when OpenAI API fails"""
+        destination = trip_context.get('destination', 'your destination')
+        duration = trip_context.get('duration', 'your trip')
+        
+        if message:
+            message_lower = message.lower()
+            
+            if any(word in message_lower for word in ['budget', 'money', 'cost', 'price', 'expensive', 'cheap']):
+                return f"I'd love to help you optimize your budget for your {duration}-day trip to {destination}! Based on your current budget of ${trip_context.get('budget')}, I can suggest ways to make the most of your money. What specific aspect of budgeting would you like help with?"
+            
+            elif any(word in message_lower for word in ['itinerary', 'plan', 'schedule', 'activities', 'what to do']):
+                return f"I'm here to help you perfect your itinerary for {destination}! With {duration} days and {trip_context.get('number_of_travelers')} travelers, we can create an amazing experience. What specific activities or aspects of your trip would you like to focus on?"
+            
+            elif any(word in message_lower for word in ['hotel', 'accommodation', 'stay', 'where to stay']):
+                return f"Great question about accommodations in {destination}! For your {duration}-day trip with {trip_context.get('number_of_travelers')} travelers, I can suggest options that fit your budget of ${trip_context.get('budget')}. What type of accommodation experience are you looking for?"
+            
+            else:
+                return f"I'm your travel assistant and I'm here to help with your {duration}-day trip to {destination}! I have all the details about your trip plan and can help you with any questions or modifications. What would you like to know or change about your trip?"
+        
+        return f"I'm ready to help you with your upcoming trip to {destination}! I have all your trip details and can assist with planning, budgeting, activities, and any questions you might have. How can I help make your {duration}-day trip amazing?"
+def generate_trip_plan_pdf(trip_plan_text, destination_city=None):
+    """Generate a well-formatted PDF with proper indentation and Google Maps links"""
     buffer = io.BytesIO()
-    p = canvas.Canvas(buffer, pagesize=letter)
-    width,height = letter
-    margin = 50
-    y = height - margin
+    doc = SimpleDocTemplate(buffer, pagesize=letter,
+                            leftMargin=50, rightMargin=50,
+                            topMargin=50, bottomMargin=50)
+    
+    # Define comprehensive styles
+    styles = getSampleStyleSheet()
+    
+    # Title style
+    styles.add(ParagraphStyle(
+        name='TripTitle',
+        fontName='Helvetica-Bold',
+        fontSize=18,
+        leading=22,
+        spaceAfter=20,
+        alignment=1,  # Center alignment
+        textColor=black,
+    ))
+    
+    # Day header style
+    styles.add(ParagraphStyle(
+        name='DayHeader',
+        fontName='Helvetica-Bold',
+        fontSize=14,
+        leading=18,
+        spaceAfter=12,
+        spaceBefore=20,
+        textColor=black,
+        leftIndent=0,
+    ))
+    
+    # Activity style with proper indentation
+    styles.add(ParagraphStyle(
+        name='Activity',
+        fontName='Helvetica',
+        fontSize=11,
+        leading=15,
+        spaceAfter=8,
+        leftIndent=20,
+        bulletIndent=10,
+    ))
+    
+    # Sub-activity style with more indentation
+    styles.add(ParagraphStyle(
+        name='SubActivity',
+        fontName='Helvetica',
+        fontSize=10,
+        leading=14,
+        spaceAfter=6,
+        leftIndent=40,
+        bulletIndent=30,
+        textColor=black,
+    ))
+    
+    # Cost information style
+    styles.add(ParagraphStyle(
+        name='CostInfo',
+        fontName='Helvetica-Oblique',
+        fontSize=10,
+        leading=13,
+        spaceAfter=6,
+        leftIndent=30,
+        textColor=blue,
+    ))
+    
+    # Notes and tips style
+    styles.add(ParagraphStyle(
+        name='TipStyle',
+        fontName='Helvetica-Oblique',
+        fontSize=10,
+        leading=13,
+        spaceAfter=8,
+        leftIndent=20,
+        textColor=black,
+        borderColor=black,
+        borderWidth=0.5,
+        borderPadding=5,
+    ))
+    
+    story = []
+    
+    # Extract locations from the text
+    locations = gmaps_service.extract_locations_from_text(trip_plan_text)
+    
+    # Process the content with intelligent formatting
     lines = trip_plan_text.split('\n')
-    for line in lines:
-        if y < margin:
-            p.showPage()
-            y = height - margin
-        p.drawString(margin, y, line)
-        y -= 15
-    p.save()
+    
+    for i, line in enumerate(lines):
+        if not line.strip():
+            story.append(Spacer(1, 8))
+            continue
+            
+        # Clean the line
+        cleaned_line = line.strip()
+        
+        # Determine line type and apply appropriate formatting
+        style_name = 'Activity'  # Default style
+        
+        # Check for different content types
+        if re.match(r'^(Day \d+|🗓️.*Day \d+)', cleaned_line, re.IGNORECASE):
+            style_name = 'DayHeader'
+        elif re.match(r'^(🏨|🍽️|🎯|🚗|💰|ℹ️|📍|⏰)', cleaned_line):
+            style_name = 'Activity'
+        elif re.match(r'^\s*[-•]', cleaned_line) or cleaned_line.startswith('  '):
+            style_name = 'SubActivity'
+        elif re.match(r'^(Cost|Price|Budget|💰)', cleaned_line, re.IGNORECASE):
+            style_name = 'CostInfo'
+        elif re.match(r'^(Tip|Note|Info|💡|⚠️)', cleaned_line, re.IGNORECASE):
+            style_name = 'TipStyle'
+        elif i == 0 and len(lines) > 1:  # First line might be title
+            style_name = 'TripTitle'
+        
+        # Process line for location links
+        line_with_links = cleaned_line
+        
+        # Find locations in this line and add Google Maps links
+        for location in locations:
+            if location.lower() in line_with_links.lower():
+                # Generate Google Maps link
+                maps_link = gmaps_service.generate_google_maps_link(location, destination_city)
+                
+                # Replace location name with a hyperlink
+                location_pattern = re.compile(re.escape(location), re.IGNORECASE)
+                line_with_links = location_pattern.sub(
+                    f'<a href="{maps_link}" color="blue">{location}</a>',
+                    line_with_links,
+                    count=1
+                )
+        
+        # Handle special formatting
+        # Bold text for headers and important information
+        if style_name in ['DayHeader', 'TripTitle']:
+            if not line_with_links.startswith('<b>'):
+                line_with_links = f'<b>{line_with_links}</b>'
+        
+        # Add bullet points for activities if not already present
+        if style_name == 'Activity' and not re.match(r'^[🏨🍽️🎯🚗💰ℹ️📍⏰•-]', line_with_links):
+            if not line_with_links.startswith('<b>'):
+                line_with_links = f'• {line_with_links}'
+        
+        # Handle time formatting
+        time_pattern = r'(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?|\d{1,2}\s*(?:AM|PM|am|pm))'
+        line_with_links = re.sub(time_pattern, r'<b>\1</b>', line_with_links)
+        
+        # Handle cost formatting
+        cost_pattern = r'(\$\d+(?:\.\d{2})?|\d+\s*(?:USD|EUR|GBP|dollars?|euros?))'
+        line_with_links = re.sub(cost_pattern, r'<b>\1</b>', line_with_links)
+        
+        # Create paragraph with appropriate style
+        try:
+            story.append(Paragraph(line_with_links, styles[style_name]))
+        except Exception as e:
+            # Fallback to default style if there's an issue
+            logger.warning(f"Error formatting line '{cleaned_line}': {e}")
+            story.append(Paragraph(line_with_links, styles['Activity']))
+    
+    # Add separator before footer
+    story.append(Spacer(1, 30))
+    
+    # Add footer with information about the links
+    footer_style = ParagraphStyle(
+        name='Footer',
+        fontName='Helvetica',
+        fontSize=9,
+        leading=11,
+        textColor=blue,
+        alignment=1,  # Center alignment
+        borderColor=black,
+        borderWidth=0.5,
+        borderPadding=8,
+    )
+    
+    story.append(Paragraph(
+        "<b>🗺️ Interactive Maps:</b> Location names in this itinerary are linked to Google Maps. "
+        "Click on any location name to view it on the map and get directions.",
+        footer_style
+    ))
+    
+    doc.build(story)
     buffer.seek(0)
     return ContentFile(buffer.read(), 'trip_plan.pdf')
 # Create a singleton instance

@@ -16,7 +16,11 @@
           <p class="card-text">Duration: {{ request.duration }} days</p>
           <p class="card-text">Budget: ${{ request.budget }}</p>
           <p class="card-text">Created: {{ request.created_at }}</p>
-          <a href="{% url 'trip_request_detail' request.pk %}" class="btn btn-primary">View Details</a>
+          <div class="btn-group" role="group" aria-label="Trip actions">
+            <a href="{% url 'trip_request_detail' request.pk %}" class="btn btn-primary">View Details</a>
+            <a href="{% url 'trip_request_update' request.pk %}" class="btn btn-secondary">Update Request</a>
+            <a href="{% url 'chatbot_with_context' request.pk %}" class="btn btn-success">Chat with Bot</a>
+          </div>
         </div>
       </div>
     {% empty %}

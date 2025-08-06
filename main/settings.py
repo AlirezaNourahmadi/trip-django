@@ -143,3 +143,6 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4-turbo-preview')
 MAX_TOKENS = int(os.getenv('MAX_TOKENS', '10000'))
 TEMPERATURE = float(os.getenv('TEMPERATURE', '0.7'))
+
+# Google Maps API Configuration
+GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY', 'AIzaSyAbyD6C_94meipDcfrkLa7pMphhAW9-K2s')

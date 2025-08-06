@@ -1,10 +1,228 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <h2>Create Trip Request</h2>
-  <form method="POST" enctype="multipart/form-data">
-      {% csrf_token %}
-      {{ form.as_p }}
-      <button type="submit">Submit</button>
-  </form>
+  <div class="container">
+    <h2>Create Trip Request</h2>
+    <form method="POST" enctype="multipart/form-data" id="trip-form">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label for="{{ form.destination.id_for_label }}">{{ form.destination.label }}</label>
+            {{ form.destination }}
+            <div id="destination-suggestions" class="list-group" style="position: absolute; z-index: 1000; width: 100%; display: none;"></div>
+            <small class="form-text text-muted">Start typing to search for destinations</small>
+            {{ form.destination_country }}
+            {{ form.destination_place_id }}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.duration.id_for_label }}">{{ form.duration.label }}</label>
+            {{ form.duration }}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.budget.id_for_label }}">{{ form.budget.label }}</label>
+            {{ form.budget }}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.number_of_travelers.id_for_label }}">{{ form.number_of_travelers.label }}</label>
+            {{ form.number_of_travelers }}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.interests.id_for_label }}">{{ form.interests.label }}</label>
+            {{ form.interests }}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.daily_budget.id_for_label }}">{{ form.daily_budget.label }}</label>
+            {{ form.daily_budget }}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.transportation_preferences.id_for_label }}">{{ form.transportation_preferences.label }}</label>
+            {{ form.transportation_preferences }}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.experience_style.id_for_label }}">{{ form.experience_style.label }}</label>
+            {{ form.experience_style }}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.uploaded_file.id_for_label }}">{{ form.uploaded_file.label }}</label>
+            {{ form.uploaded_file }}
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Create Trip Request</button>
+    </form>
+  </div>
+
+  <style>
+    .form-group {
+        margin-bottom: 1.5rem;
+        position: relative;
+    }
+    
+    .list-group-item {
+        cursor: pointer;
+        padding: 0.75rem;
+        border: 1px solid #dee2e6;
+    }
+    
+    .list-group-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .list-group-item.active {
+        background-color: #007bff;
+        color: white;
+    }
+  </style>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const destinationInput = document.getElementById('destination-input');
+        const suggestionsContainer = document.getElementById('destination-suggestions');
+        const countryField = document.getElementById('id_destination_country');
+        const placeIdField = document.getElementById('id_destination_place_id');
+        
+        let debounceTimer;
+        let selectedIndex = -1;
+        let suggestions = [];
+        
+        // Debounced search function
+        function debounceSearch(query) {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                if (query.length >= 2) {
+                    searchPlaces(query);
+                } else {
+                    hideSuggestions();
+                }
+            }, 300);
+        }
+        
+        // Search places using our API
+        function searchPlaces(query) {
+            fetch(`/api/places-autocomplete/?query=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    suggestions = data.suggestions || [];
+                    displaySuggestions(suggestions);
+                })
+                .catch(error => {
+                    console.error('Error fetching suggestions:', error);
+                    hideSuggestions();
+                });
+        }
+        
+        // Display suggestions
+        function displaySuggestions(suggestions) {
+            if (suggestions.length === 0) {
+                hideSuggestions();
+                return;
+            }
+            
+            suggestionsContainer.innerHTML = '';
+            selectedIndex = -1;
+            
+            suggestions.forEach((suggestion, index) => {
+                const item = document.createElement('div');
+                item.className = 'list-group-item';
+                item.innerHTML = `
+                    <div>
+                        <strong>${suggestion.main_text}</strong>
+                        <small class="text-muted d-block">${suggestion.secondary_text}</small>
+                    </div>
+                `;
+                
+                item.addEventListener('click', () => {
+                    selectSuggestion(suggestion);
+                });
+                
+                suggestionsContainer.appendChild(item);
+            });
+            
+            suggestionsContainer.style.display = 'block';
+        }
+        
+        // Hide suggestions
+        function hideSuggestions() {
+            suggestionsContainer.style.display = 'none';
+            selectedIndex = -1;
+        }
+        
+        // Select a suggestion
+        function selectSuggestion(suggestion) {
+            destinationInput.value = suggestion.description;
+            countryField.value = suggestion.secondary_text || '';
+            placeIdField.value = suggestion.place_id || '';
+            hideSuggestions();
+        }
+        
+        // Keyboard navigation
+        function handleKeyNavigation(e) {
+            const items = suggestionsContainer.querySelectorAll('.list-group-item');
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                updateSelection(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, -1);
+                updateSelection(items);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
+                    selectSuggestion(suggestions[selectedIndex]);
+                }
+            } else if (e.key === 'Escape') {
+                hideSuggestions();
+            }
+        }
+        
+        // Update visual selection
+        function updateSelection(items) {
+            items.forEach((item, index) => {
+                if (index === selectedIndex) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        }
+        
+        // Event listeners
+        destinationInput.addEventListener('input', (e) => {
+            debounceSearch(e.target.value.trim());
+        });
+        
+        destinationInput.addEventListener('keydown', handleKeyNavigation);
+        
+        destinationInput.addEventListener('focus', () => {
+            if (destinationInput.value.trim().length >= 2) {
+                searchPlaces(destinationInput.value.trim());
+            }
+        });
+        
+        // Hide suggestions when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!destinationInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+                hideSuggestions();
+            }
+        });
+        
+        // Form validation
+        document.getElementById('trip-form').addEventListener('submit', (e) => {
+            if (!destinationInput.value.trim()) {
+                e.preventDefault();
+                alert('Please select a destination.');
+                destinationInput.focus();
+            }
+        });
+    });
+  </script>
 {% endblock %}

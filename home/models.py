@@ -20,7 +20,9 @@ class Destination(models.Model):
     
 class TripPlanRequest(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE , related_name="trip_requests")
-    destination = models.ForeignKey(Destination, on_delete=models.CASCADE , related_name="trip_requests")
+    destination = models.CharField(max_length=255, help_text="Destination city or place")
+    destination_country = models.CharField(max_length=255, blank=True, null=True, help_text="Destination country")
+    destination_place_id = models.CharField(max_length=255, blank=True, null=True, help_text="Google Places ID")
     duration = models.IntegerField(help_text="Duration in days")
     budget = models.DecimalField(help_text="budget in chosen currency" , max_digits=10, decimal_places=2)
     number_of_travelers = models.IntegerField(default=1, help_text="Number of travelers")
@@ -69,6 +71,77 @@ class UserTripHistory(models.Model):
     
     def __str__(self):
         return f"{self.user.username} - {self.destination.name} ({self.trip_date})"
+
+class Ticket(models.Model):
+    """Support ticket system for trip modifications and user assistance"""
+    STATUS_CHOICES = [
+        ('open', 'Open'),
+        ('in_progress', 'In Progress'),
+        ('resolved', 'Resolved'),
+        ('closed', 'Closed'),
+    ]
+    
+    PRIORITY_CHOICES = [
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('urgent', 'Urgent'),
+    ]
+    
+    CATEGORY_CHOICES = [
+        ('trip_modification', 'Trip Modification'),
+        ('destination_change', 'Destination Change'),
+        ('budget_adjustment', 'Budget Adjustment'),
+        ('itinerary_update', 'Itinerary Update'),
+        ('general_support', 'General Support'),
+        ('technical_issue', 'Technical Issue'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tickets')
+    trip_request = models.ForeignKey(TripPlanRequest, on_delete=models.CASCADE, related_name='tickets', null=True, blank=True)
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='general_support')
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='open')
+    priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='medium')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    
+    # Additional data for context
+    original_destination = models.CharField(max_length=255, blank=True, null=True)
+    requested_changes = models.JSONField(default=dict, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Ticket #{self.id}: {self.title} - {self.get_status_display()}"
+
+class TicketMessage(models.Model):
+    """Messages within a support ticket (chatbot conversation)"""
+    SENDER_CHOICES = [
+        ('user', 'User'),
+        ('bot', 'Bot'),
+        ('admin', 'Admin'),
+    ]
+    
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='messages')
+    sender = models.CharField(max_length=10, choices=SENDER_CHOICES)
+    content = models.TextField()
+    message_type = models.CharField(max_length=10, default='text')
+    file_attachment = models.FileField(upload_to='ticket_attachments/', blank=True, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    # For bot responses - track what action was taken
+    action_taken = models.CharField(max_length=50, blank=True, null=True)
+    action_data = models.JSONField(default=dict, blank=True)
+    
+    class Meta:
+        ordering = ['timestamp']
+    
+    def __str__(self):
+        return f"Message in Ticket #{self.ticket.id} by {self.sender}"
 
 class ChatMessage(models.Model):
     MESSAGE_TYPES = [
