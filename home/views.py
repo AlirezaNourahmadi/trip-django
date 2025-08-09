@@ -60,7 +60,11 @@ class TripRequestDetailView(LoginRequiredMixin, View):
             plan = trip_request.generated_plan
         except GeneratedPlan.DoesNotExist:
             plan = None
-        return render(request, "home/trip_request_detail.html", {
+        
+        # Use enhanced template with photos if plan exists
+        template_name = "home/trip_detail_enhanced.html" if plan else "home/trip_request_detail.html"
+        
+        return render(request, template_name, {
             "trip_request": trip_request,
             "plan": plan
         })
@@ -202,7 +206,7 @@ class ChatbotWithContextView(LoginRequiredMixin, View):
             trip_request=trip_request,
             status__in=['open', 'in_progress'],
             defaults={
-                'title': f'Chat Session for {trip_request.destination.name} Trip',
+                'title': f'Chat Session for {trip_request.destination} Trip',
                 'description': f'User initiated chat session for trip request #{trip_id}',
                 'category': 'general_support',
                 'priority': 'medium'
@@ -230,7 +234,7 @@ class ChatbotWithContextView(LoginRequiredMixin, View):
             trip_request=trip_request,
             status__in=['open', 'in_progress'],
             defaults={
-                'title': f'Chat Session for {trip_request.destination.name} Trip',
+                'title': f'Chat Session for {trip_request.destination} Trip',
                 'description': f'User initiated chat session for trip request #{trip_id}',
                 'category': 'general_support',
                 'priority': 'medium'
@@ -279,8 +283,8 @@ class ChatbotWithContextView(LoginRequiredMixin, View):
         """Generate comprehensive trip context for AI"""
         context = {
             'trip_id': trip_request.id,
-            'destination': trip_request.destination.name,
-            'country': trip_request.destination.country,
+            'destination': trip_request.destination,
+            'country': trip_request.destination_country,
             'duration': trip_request.duration,
             'budget': str(trip_request.budget),
             'number_of_travelers': trip_request.number_of_travelers,
@@ -309,30 +313,80 @@ def generate_trip_plan_background(trip_request_id, user_id):
         User = get_user_model()
         user = User.objects.get(id=user_id)
         
-        # Generate initial trip plan
-        initial_trip_plan = ai_service.generate_trip_plan(trip_request)
+        try:
+            # Generate initial trip plan
+            initial_trip_plan = ai_service.generate_trip_plan(trip_request)
+            
+            # Enhance the trip plan with location images, schedules, and costs
+            trip_plan_text = ai_service.generate_enhanced_response(
+                initial_plan=initial_trip_plan,
+                user=user,
+                destination=trip_request.destination,
+                number_of_travelers=trip_request.number_of_travelers
+            )
+            
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"Error generating trip plan: {error_msg}")
+            
+            # Create a fallback trip plan
+            trip_plan_text = f"""
+🌟 Trip Plan for {trip_request.destination}
+
+We encountered some technical difficulties generating your detailed itinerary, but here's a basic framework for your {trip_request.duration}-day trip:
+
+📍 Destination: {trip_request.destination}
+👥 Travelers: {trip_request.number_of_travelers}
+💰 Budget: ${trip_request.budget}
+⏱️ Duration: {trip_request.duration} days
+
+🎯 Your Interests: {trip_request.interests or 'Explore and discover'}
+
+Day 1: Arrival and Initial Exploration
+• Arrive at your destination
+• Check into accommodation
+• Explore the local area
+• Try local cuisine for dinner
+
+Day 2-{max(2, trip_request.duration-1)}: Main Activities
+• Visit top attractions based on your interests
+• Experience local culture and traditions
+• Try recommended restaurants
+• Take photos and create memories
+
+Day {trip_request.duration}: Departure
+• Final activities or shopping
+• Prepare for departure
+• Safe travels home!
+
+💡 Note: This is a basic itinerary due to temporary technical issues. For a detailed, personalized plan, please try generating your trip plan again later or contact our support team.
+
+🗺️ We recommend researching specific attractions, restaurants, and activities in {trip_request.destination} that match your interests: {trip_request.interests or 'general tourism'}
+            """
         
-        # Enhance the trip plan with location images, schedules, and costs
-        trip_plan_text = ai_service.generate_enhanced_response(
-            initial_plan=initial_trip_plan,
-            user=user,
-            destination=trip_request.destination.name,
-            number_of_travelers=trip_request.number_of_travelers
-        )
+        try:
+            # Generate PDF file from trip plan text with Google Maps links
+            pdf_content = generate_trip_plan_pdf(trip_plan_text, trip_request.destination)
+            
+            # Save GeneratedPlan instance
+            generated_plan, created = GeneratedPlan.objects.get_or_create(trip_request=trip_request)
+            generated_plan.content = trip_plan_text
+            generated_plan.pdf_file.save(f"trip_plan_{trip_request.id}.pdf", pdf_content)
+            generated_plan.save()
+            
+            logger.info(f"Trip plan generated successfully for request {trip_request_id}")
+            
+        except Exception as pdf_error:
+            logger.error(f"Error generating PDF for request {trip_request_id}: {pdf_error}")
+            # Save just the text content without PDF
+            generated_plan, created = GeneratedPlan.objects.get_or_create(trip_request=trip_request)
+            generated_plan.content = trip_plan_text
+            generated_plan.save()
         
-        # Generate PDF file from trip plan text with Google Maps links
-        pdf_content = generate_trip_plan_pdf(trip_plan_text, trip_request.destination.name)
-        
-        # Save GeneratedPlan instance
-        generated_plan, created = GeneratedPlan.objects.get_or_create(trip_request=trip_request)
-        generated_plan.content = trip_plan_text
-        generated_plan.pdf_file.save(f"trip_plan_{trip_request.id}.pdf", pdf_content)
-        generated_plan.save()
-        
-        logger.info(f"Trip plan generated successfully for request {trip_request_id}")
-        
+    except TripPlanRequest.DoesNotExist:
+        logger.error(f"Trip request {trip_request_id} not found")
     except Exception as e:
-        logger.error(f"Error generating trip plan for request {trip_request_id}: {e}")
+        logger.error(f"Unexpected error in generate_trip_plan_background for request {trip_request_id}: {e}")
 
 class TripStatusAPIView(View):
     """API endpoint to check trip generation status"""
@@ -386,3 +440,47 @@ class PlacesAutocompleteAPIView(View):
                 'suggestions': [],
                 'error': 'Failed to fetch suggestions'
             })
+
+class LocationPhotosAPIView(View):
+    """API endpoint for fetching location photos from Google Places"""
+    
+    def get(self, request):
+        location_name = request.GET.get('location', '').strip()
+        destination_city = request.GET.get('destination', '').strip()
+        
+        if not location_name:
+            return JsonResponse({'error': 'Location name is required'}, status=400)
+        
+        try:
+            from .services import gmaps_service
+            
+            # Get place details including photos
+            place_details = gmaps_service.get_place_details(location_name, destination_city)
+            
+            if not place_details:
+                return JsonResponse({
+                    'location': location_name,
+                    'photos': [],
+                    'rating': None,
+                    'formatted_address': None,
+                    'message': 'Location not found'
+                })
+            
+            return JsonResponse({
+                'location': location_name,
+                'place_id': place_details.get('place_id'),
+                'name': place_details.get('name'),
+                'photos': place_details.get('photos', []),
+                'rating': place_details.get('rating'),
+                'formatted_address': place_details.get('formatted_address'),
+                'types': place_details.get('types', []),
+                'maps_link': f"https://maps.google.com/?q=place_id:{place_details.get('place_id')}" if place_details.get('place_id') else None
+            })
+            
+        except Exception as e:
+            logger.error(f"Error getting location photos for {location_name}: {e}")
+            return JsonResponse({
+                'error': 'Failed to fetch location photos',
+                'location': location_name,
+                'photos': []
+            }, status=500)

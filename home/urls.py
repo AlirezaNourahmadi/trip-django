@@ -3,7 +3,7 @@ from . import views
 from .views import (
     HomeView, TripRequestCreateView, TripRequestDetailView, TripRequestUpdateView,
     ChatbotView, ChatbotWithContextView, CustomLoginView, CustomLogoutView, RegisterView, ProfileView,
-    TripStatusAPIView, PlacesAutocompleteAPIView
+    TripStatusAPIView, PlacesAutocompleteAPIView, LocationPhotosAPIView
 )
 
 urlpatterns = [
@@ -19,4 +19,5 @@ urlpatterns = [
     path("profile/", ProfileView.as_view(), name="profile"),
     path("api/trip-status/<int:trip_id>/", TripStatusAPIView.as_view(), name="trip_status"),
     path("api/places-autocomplete/", PlacesAutocompleteAPIView.as_view(), name="places_autocomplete"),
+    path("api/location-photos/", LocationPhotosAPIView.as_view(), name="location_photos"),
 ]

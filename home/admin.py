@@ -16,21 +16,21 @@ class DestinationAdmin(admin.ModelAdmin):
 @admin.register(TripPlanRequest)
 class TripPlanRequestAdmin(admin.ModelAdmin):
     list_display = ['id', 'user', 'destination', 'duration', 'budget', 'created_at']
-    search_fields = ['user__username', 'destination__name']
+    search_fields = ['user__username', 'destination']
     list_filter = ['destination', 'created_at']
     readonly_fields = ['created_at']
 
 @admin.register(GeneratedPlan)
 class GeneratedPlanAdmin(admin.ModelAdmin):
     list_display = ['id', 'trip_request', 'get_user', 'get_destination']
-    search_fields = ['trip_request__user__username', 'trip_request__destination__name']
+    search_fields = ['trip_request__user__username', 'trip_request__destination']
     
     def get_user(self, obj):
         return obj.trip_request.user.username
     get_user.short_description = 'User'
     
     def get_destination(self, obj):
-        return obj.trip_request.destination.name
+        return obj.trip_request.destination
     get_destination.short_description = 'Destination'
 
 @admin.register(ChatMessage)

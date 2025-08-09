@@ -7,22 +7,17 @@ import io
 import re
 import urllib.parse
 import googlemaps
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.pdfgen import canvas
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
-from reportlab.lib.units import inch
-from reportlab.lib.colors import blue, black
 from django.core.files.base import ContentFile
 from concurrent.futures import ThreadPoolExecutor
 import asyncio
 from .models import UserTripHistory
+from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.pdfbase import pdfmetrics
-from django.core.files.base import ContentFile
+from reportlab.lib.colors import black, blue
+from reportlab.lib.units import inch
+from datetime import datetime
+import html
 
 
 
@@ -46,14 +41,42 @@ class GoogleMapsService:
             
             if places_result['results']:
                 place = places_result['results'][0]
-                return {
+                place_details = {
                     'place_id': place.get('place_id'),
                     'name': place.get('name'),
                     'formatted_address': place.get('formatted_address'),
                     'location': place.get('geometry', {}).get('location', {}),
                     'rating': place.get('rating'),
-                    'types': place.get('types', [])
+                    'types': place.get('types', []),
+                    'photos': []
                 }
+                
+                # Get detailed information including photos
+                if place.get('place_id'):
+                    try:
+                        detailed_place = self.gmaps.place(
+                            place_id=place['place_id'],
+                            fields=['name', 'photo', 'rating', 'formatted_address', 'geometry', 'type']
+                        )
+                        
+                        if 'photo' in detailed_place['result']:
+                            # Get up to 3 photos for each location
+                            photos = detailed_place['result']['photo'][:3]
+                            for photo in photos:
+                                photo_reference = photo.get('photo_reference')
+                                if photo_reference:
+                                    # Create photo URL
+                                    photo_url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference={photo_reference}&key={settings.GOOGLE_MAPS_API_KEY}"
+                                    place_details['photos'].append({
+                                        'url': photo_url,
+                                        'width': photo.get('width', 400),
+                                        'height': photo.get('height', 300),
+                                        'attributions': photo.get('html_attributions', [])
+                                    })
+                    except Exception as photo_error:
+                        logger.warning(f"Error fetching photos for {location_name}: {photo_error}")
+                
+                return place_details
         except Exception as e:
             logger.error(f"Error getting place details for {location_name}: {e}")
         return None
@@ -183,26 +206,69 @@ Daily budget: {trip_request.daily_budget}
 Transportation preferences: {trip_request.transportation_preferences}
 Experience style: {trip_request.experience_style}
 
+IMPORTANT FORMATTING RULES:
+- NEVER use hashtags (#), asterisks (*), or other special characters for headers or emphasis
+- Always use relevant emojis at the beginning of sections and activities
+- Use emojis like 🌟, 🗓️, 📍, 🏨, 🍽️, 🎯, 🚗, 💰, ⏰, 🎨, 🏛️, 🌊, 🎪 etc.
+- Make the content visually appealing with appropriate emojis
+- Use simple text formatting without markdown symbols
+
 Please provide a day-by-day itinerary with recommendations for activities, dining, transportation, and accommodations. Make sure to optimize the plan according to the user's budget and preferences.
+
+Format example:
+🌟 Amazing Trip to [Destination]
+
+🗓️ Day 1: Arrival and Exploration
+🏨 Check into your hotel
+🍽️ Lunch at local restaurant
+📍 Visit main attraction
+💰 Estimated cost: $XX
+
+🗓️ Day 2: Cultural Experience
+🎨 Museum visit
+🍕 Try local cuisine
+⏰ Best time: Morning
 """
         messages = [
             {"role": "system", "content": self.get_travel_assistant_prompt()},
             {"role": "user", "content": prompt}
         ]
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                max_tokens=self.max_tokens,
-                temperature=self.temperature,
-                top_p=1,
-                frequency_penalty=0,
-                presence_penalty=0
-            )
-            return response.choices[0].message.content.strip()
-        except Exception as e:
-            logger.error(f"Error generating trip plan: {e}")
-            return "Sorry, I couldn't generate the trip plan at this time."
+        # Retry logic for API calls
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    max_tokens=self.max_tokens,
+                    temperature=self.temperature,
+                    top_p=1,
+                    frequency_penalty=0,
+                    presence_penalty=0,
+                    timeout=120  # 120 second timeout for longer requests
+                )
+                return response.choices[0].message.content.strip()
+            except Exception as e:
+                error_message = str(e)
+                logger.warning(f"Attempt {attempt + 1}/{max_retries} failed: {error_message}")
+                
+                if attempt == max_retries - 1:  # Last attempt
+                    if "timeout" in error_message.lower() or "timed out" in error_message.lower():
+                        logger.error(f"Request timed out.")
+                        raise Exception("Request timed out.")
+                    elif "connection" in error_message.lower():
+                        logger.error(f"Connection error.")
+                        raise Exception("Connection error.")
+                    elif "rate_limit" in error_message.lower() or "quota" in error_message.lower():
+                        logger.error(f"API rate limit or quota exceeded.")
+                        raise Exception("API rate limit exceeded.")
+                    else:
+                        logger.error(f"Error generating trip plan: {e}")
+                        raise Exception(f"Error generating trip plan: {e}")
+                
+                # Wait before retry (exponential backoff)
+                import time
+                time.sleep(2 ** attempt)
 
 
 
@@ -314,7 +380,8 @@ Please provide a day-by-day itinerary with recommendations for activities, dinin
                 temperature=self.temperature,
                 top_p=1,
                 frequency_penalty=0,
-                presence_penalty=0
+                presence_penalty=0,
+                timeout=120  # 120 second timeout for longer requests
             )
             
             return response.choices[0].message.content.strip()
@@ -594,187 +661,204 @@ Please provide a day-by-day itinerary with recommendations for activities, dinin
         
         return f"I'm ready to help you with your upcoming trip to {destination}! I have all your trip details and can assist with planning, budgeting, activities, and any questions you might have. How can I help make your {duration}-day trip amazing?"
 def generate_trip_plan_pdf(trip_plan_text, destination_city=None):
-    """Generate a well-formatted PDF with proper indentation and Google Maps links"""
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter,
-                            leftMargin=50, rightMargin=50,
-                            topMargin=50, bottomMargin=50)
-    
-    # Define comprehensive styles
-    styles = getSampleStyleSheet()
-    
-    # Title style
-    styles.add(ParagraphStyle(
-        name='TripTitle',
-        fontName='Helvetica-Bold',
-        fontSize=18,
-        leading=22,
-        spaceAfter=20,
-        alignment=1,  # Center alignment
-        textColor=black,
-    ))
-    
-    # Day header style
-    styles.add(ParagraphStyle(
-        name='DayHeader',
-        fontName='Helvetica-Bold',
-        fontSize=14,
-        leading=18,
-        spaceAfter=12,
-        spaceBefore=20,
-        textColor=black,
-        leftIndent=0,
-    ))
-    
-    # Activity style with proper indentation
-    styles.add(ParagraphStyle(
-        name='Activity',
-        fontName='Helvetica',
-        fontSize=11,
-        leading=15,
-        spaceAfter=8,
-        leftIndent=20,
-        bulletIndent=10,
-    ))
-    
-    # Sub-activity style with more indentation
-    styles.add(ParagraphStyle(
-        name='SubActivity',
-        fontName='Helvetica',
-        fontSize=10,
-        leading=14,
-        spaceAfter=6,
-        leftIndent=40,
-        bulletIndent=30,
-        textColor=black,
-    ))
-    
-    # Cost information style
-    styles.add(ParagraphStyle(
-        name='CostInfo',
-        fontName='Helvetica-Oblique',
-        fontSize=10,
-        leading=13,
-        spaceAfter=6,
-        leftIndent=30,
-        textColor=blue,
-    ))
-    
-    # Notes and tips style
-    styles.add(ParagraphStyle(
-        name='TipStyle',
-        fontName='Helvetica-Oblique',
-        fontSize=10,
-        leading=13,
-        spaceAfter=8,
-        leftIndent=20,
-        textColor=black,
-        borderColor=black,
-        borderWidth=0.5,
-        borderPadding=5,
-    ))
-    
-    story = []
-    
-    # Extract locations from the text
-    locations = gmaps_service.extract_locations_from_text(trip_plan_text)
-    
-    # Process the content with intelligent formatting
-    lines = trip_plan_text.split('\n')
-    
-    for i, line in enumerate(lines):
-        if not line.strip():
-            story.append(Spacer(1, 8))
-            continue
-            
-        # Clean the line
-        cleaned_line = line.strip()
+    """Generate a professional PDF using ReportLab with emoji support and Google Maps links"""
+    try:
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter,
+                                leftMargin=50, rightMargin=50,
+                                topMargin=50, bottomMargin=50)
         
-        # Determine line type and apply appropriate formatting
-        style_name = 'Activity'  # Default style
+        # Define styles
+        styles = getSampleStyleSheet()
         
-        # Check for different content types
-        if re.match(r'^(Day \d+|🗓️.*Day \d+)', cleaned_line, re.IGNORECASE):
-            style_name = 'DayHeader'
-        elif re.match(r'^(🏨|🍽️|🎯|🚗|💰|ℹ️|📍|⏰)', cleaned_line):
-            style_name = 'Activity'
-        elif re.match(r'^\s*[-•]', cleaned_line) or cleaned_line.startswith('  '):
-            style_name = 'SubActivity'
-        elif re.match(r'^(Cost|Price|Budget|💰)', cleaned_line, re.IGNORECASE):
-            style_name = 'CostInfo'
-        elif re.match(r'^(Tip|Note|Info|💡|⚠️)', cleaned_line, re.IGNORECASE):
-            style_name = 'TipStyle'
-        elif i == 0 and len(lines) > 1:  # First line might be title
-            style_name = 'TripTitle'
+        # Title style
+        styles.add(ParagraphStyle(
+            name='TripTitle',
+            fontName='Helvetica-Bold',
+            fontSize=18,
+            leading=22,
+            spaceAfter=20,
+            alignment=1,  # Center alignment
+            textColor=black,
+        ))
         
-        # Process line for location links
-        line_with_links = cleaned_line
+        # Day header style
+        styles.add(ParagraphStyle(
+            name='DayHeader',
+            fontName='Helvetica-Bold',
+            fontSize=14,
+            leading=18,
+            spaceAfter=12,
+            spaceBefore=20,
+            textColor=black,
+            leftIndent=0,
+        ))
         
-        # Find locations in this line and add Google Maps links
-        for location in locations:
-            if location.lower() in line_with_links.lower():
-                # Generate Google Maps link
-                maps_link = gmaps_service.generate_google_maps_link(location, destination_city)
+        # Activity style
+        styles.add(ParagraphStyle(
+            name='Activity',
+            fontName='Helvetica',
+            fontSize=11,
+            leading=15,
+            spaceAfter=8,
+            leftIndent=20,
+            bulletIndent=10,
+        ))
+        
+        # Sub-activity style
+        styles.add(ParagraphStyle(
+            name='SubActivity',
+            fontName='Helvetica',
+            fontSize=10,
+            leading=14,
+            spaceAfter=6,
+            leftIndent=40,
+            bulletIndent=30,
+            textColor=black,
+        ))
+        
+        # Cost information style
+        styles.add(ParagraphStyle(
+            name='CostInfo',
+            fontName='Helvetica-Oblique',
+            fontSize=10,
+            leading=13,
+            spaceAfter=6,
+            leftIndent=30,
+            textColor=blue,
+        ))
+        
+        # Tips style
+        styles.add(ParagraphStyle(
+            name='TipStyle',
+            fontName='Helvetica-Oblique',
+            fontSize=10,
+            leading=13,
+            spaceAfter=8,
+            leftIndent=20,
+            textColor=black,
+        ))
+        
+        story = []
+        
+        # Extract locations from the text for Google Maps links
+        locations = gmaps_service.extract_locations_from_text(trip_plan_text)
+        
+        # Process the content
+        lines = trip_plan_text.split('\n')
+        
+        for i, line in enumerate(lines):
+            if not line.strip():
+                story.append(Spacer(1, 8))
+                continue
                 
-                # Replace location name with a hyperlink
-                location_pattern = re.compile(re.escape(location), re.IGNORECASE)
-                line_with_links = location_pattern.sub(
-                    f'<a href="{maps_link}" color="blue">{location}</a>',
-                    line_with_links,
-                    count=1
-                )
+            # Clean the line and escape HTML characters
+            cleaned_line = html.escape(line.strip())
+            
+            # Determine line type and apply appropriate formatting
+            style_name = 'Activity'  # Default style
+            
+            # Check for different content types based on emojis and keywords
+            if i == 0 and len(lines) > 1:  # First line might be title
+                style_name = 'TripTitle'
+            elif re.match(r'^(.*Day \d+|.*🗓️)', cleaned_line, re.IGNORECASE):
+                style_name = 'DayHeader'
+            elif re.match(r'^(.*💰|.*Cost|.*Price|.*Budget)', cleaned_line, re.IGNORECASE):
+                style_name = 'CostInfo'
+            elif re.match(r'^(.*💡|.*⚠️|.*Tip|.*Note|.*Info)', cleaned_line, re.IGNORECASE):
+                style_name = 'TipStyle'
+            elif re.match(r'^\s*[-•]', cleaned_line) or line.startswith('  '):
+                style_name = 'SubActivity'
+            
+            # Process line for location links
+            line_with_links = cleaned_line
+            
+            # Find locations in this line and add Google Maps links
+            for location in locations:
+                if location.lower() in line_with_links.lower():
+                    # Generate Google Maps link
+                    maps_link = gmaps_service.generate_google_maps_link(location, destination_city)
+                    
+                    # Replace location name with a hyperlink (escape the location name)
+                    escaped_location = html.escape(location)
+                    location_pattern = re.compile(re.escape(escaped_location), re.IGNORECASE)
+                    line_with_links = location_pattern.sub(
+                        f'<a href="{maps_link}" color="blue">{escaped_location}</a>',
+                        line_with_links,
+                        count=1
+                    )
+            
+            # Handle special formatting for headers
+            if style_name in ['DayHeader', 'TripTitle']:
+                if not line_with_links.startswith('<b>'):
+                    line_with_links = f'<b>{line_with_links}</b>'
+            
+            # Add bullet points for activities if not already present and not a special line
+            if style_name == 'Activity' and not re.match(r'^[🏨🍽️🎯🚗📍⏰🎨🏛️🌊🎪•\-]', line_with_links):
+                if not line_with_links.startswith('<b>'):
+                    line_with_links = f'• {line_with_links}'
+            
+            # Create paragraph with appropriate style
+            try:
+                story.append(Paragraph(line_with_links, styles[style_name]))
+            except Exception as e:
+                # Fallback to default style if there's an issue
+                logger.warning(f"Error formatting line '{cleaned_line}': {e}")
+                story.append(Paragraph(line_with_links, styles['Activity']))
         
-        # Handle special formatting
-        # Bold text for headers and important information
-        if style_name in ['DayHeader', 'TripTitle']:
-            if not line_with_links.startswith('<b>'):
-                line_with_links = f'<b>{line_with_links}</b>'
+        # Add separator before footer
+        story.append(Spacer(1, 30))
         
-        # Add bullet points for activities if not already present
-        if style_name == 'Activity' and not re.match(r'^[🏨🍽️🎯🚗💰ℹ️📍⏰•-]', line_with_links):
-            if not line_with_links.startswith('<b>'):
-                line_with_links = f'• {line_with_links}'
+        # Add footer
+        footer_style = ParagraphStyle(
+            name='Footer',
+            fontName='Helvetica',
+            fontSize=9,
+            leading=11,
+            textColor=blue,
+            alignment=1,  # Center alignment
+        )
         
-        # Handle time formatting
-        time_pattern = r'(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?|\d{1,2}\s*(?:AM|PM|am|pm))'
-        line_with_links = re.sub(time_pattern, r'<b>\1</b>', line_with_links)
+        footer_text = """<b>🗺️ Interactive Maps:</b> Location names in this itinerary are linked to Google Maps. 
+        Click on any location name to view it on the map and get directions.<br/><br/>
+        Generated on {} • Trip-Django Travel Planner""".format(datetime.now().strftime('%B %d, %Y'))
         
-        # Handle cost formatting
-        cost_pattern = r'(\$\d+(?:\.\d{2})?|\d+\s*(?:USD|EUR|GBP|dollars?|euros?))'
-        line_with_links = re.sub(cost_pattern, r'<b>\1</b>', line_with_links)
+        story.append(Paragraph(footer_text, footer_style))
         
-        # Create paragraph with appropriate style
-        try:
-            story.append(Paragraph(line_with_links, styles[style_name]))
-        except Exception as e:
-            # Fallback to default style if there's an issue
-            logger.warning(f"Error formatting line '{cleaned_line}': {e}")
-            story.append(Paragraph(line_with_links, styles['Activity']))
-    
-    # Add separator before footer
-    story.append(Spacer(1, 30))
-    
-    # Add footer with information about the links
-    footer_style = ParagraphStyle(
-        name='Footer',
-        fontName='Helvetica',
-        fontSize=9,
-        leading=11,
-        textColor=blue,
-        alignment=1,  # Center alignment
-        borderColor=black,
-        borderWidth=0.5,
-        borderPadding=8,
-    )
-    
-    story.append(Paragraph(
-        "<b>🗺️ Interactive Maps:</b> Location names in this itinerary are linked to Google Maps. "
-        "Click on any location name to view it on the map and get directions.",
-        footer_style
-    ))
-    
-    doc.build(story)
-    buffer.seek(0)
-    return ContentFile(buffer.read(), 'trip_plan.pdf')
+        doc.build(story)
+        buffer.seek(0)
+        return ContentFile(buffer.read(), 'trip_plan.pdf')
+        
+    except Exception as e:
+        logger.error(f"Error generating PDF with ReportLab: {e}")
+        # Fallback: create a simple text file
+        return _generate_fallback_text_file(trip_plan_text, destination_city)
+
+def _generate_fallback_text_file(trip_plan_text, destination_city=None):
+    """Generate a simple text file as fallback when PDF generation fails"""
+    try:
+        # Create a nicely formatted text version
+        formatted_text = f"""Trip Plan for {destination_city or 'Your Destination'}
+{"=" * 50}
+
+Generated on {datetime.now().strftime('%B %d, %Y')}
+Trip-Django Travel Planner
+
+{"=" * 50}
+
+{trip_plan_text}
+
+{"=" * 50}
+
+Note: Location names would be linked to Google Maps in the PDF version.
+For the best experience, please try generating the PDF again.
+"""
+        
+        return ContentFile(formatted_text.encode('utf-8'), 'trip_plan.txt')
+        
+    except Exception as e:
+        logger.error(f"Fallback text generation also failed: {e}")
+        # Last resort: return basic text file
+        return ContentFile(trip_plan_text.encode('utf-8'), 'trip_plan.txt')
 # Create a singleton instance
 ai_service = AIService()
