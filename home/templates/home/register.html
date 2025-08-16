@@ -1,12 +1,201 @@
 {% extends "base.html" %}
 
+{% block extra_css %}
+<style>
+    .auth-container {
+        min-height: 80vh;
+        display: flex;
+        align-items: center;
+        background: var(--success-gradient);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .auth-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><polygon fill="%23ffffff08" points="0,200 300,0 600,200 300,400"/><polygon fill="%23ffffff05" points="600,600 900,400 1200,600 900,800"/></svg>');
+        animation: float 10s ease-in-out infinite;
+    }
+    
+    .auth-form {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        padding: 3rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        position: relative;
+        z-index: 2;
+    }
+    
+    .auth-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    
+    .auth-title {
+        background: var(--success-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .auth-subtitle {
+        color: #6c757d;
+        font-size: 1.1rem;
+    }
+    
+    .form-floating {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-floating > .form-control {
+        border: 2px solid rgba(0,0,0,0.1);
+        border-radius: 12px;
+        padding: 1rem 0.75rem;
+        height: auto;
+    }
+    
+    .form-floating > .form-control:focus {
+        border-color: #56ab2f;
+        box-shadow: 0 0 0 0.2rem rgba(86, 171, 47, 0.25);
+    }
+    
+    .form-floating > label {
+        padding: 1rem 0.75rem;
+        color: #6c757d;
+    }
+    
+    .btn-auth {
+        background: var(--success-gradient);
+        border: none;
+        color: white;
+        padding: 0.8rem 2rem;
+        border-radius: 50px;
+        font-weight: 600;
+        width: 100%;
+        transition: var(--transition);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn-auth:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(86, 171, 47, 0.3);
+        color: white;
+    }
+    
+    .auth-links {
+        text-align: center;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid rgba(0,0,0,0.1);
+    }
+    
+    .auth-links a {
+        color: #56ab2f;
+        text-decoration: none;
+        font-weight: 500;
+        transition: var(--transition);
+    }
+    
+    .auth-links a:hover {
+        color: #3e7e02;
+        text-decoration: underline;
+    }
+    
+    .form-text {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-top: 0.5rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-  <div class="container">
-    <h2>Register</h2>
-    <form method="post">
-      {% csrf_token %}
-      {{ form.as_p }}
-      <button type="submit" class="btn btn-success">Register</button>
-    </form>
-  </div>
+<div class="auth-container">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-7 col-lg-6">
+                <div class="auth-form">
+                    <div class="auth-header">
+                        <h1 class="auth-title">🌟 Join TripAI</h1>
+                        <p class="auth-subtitle">Start your personalized travel planning journey</p>
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="form-floating">
+                            {{ form.username }}
+                            <label for="id_username">Username</label>
+                            {% if form.username.help_text %}
+                                <div class="form-text">{{ form.username.help_text }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-floating">
+                            {{ form.email }}
+                            <label for="id_email">Email Address</label>
+                        </div>
+                        
+                        <div class="form-floating">
+                            {{ form.first_name }}
+                            <label for="id_first_name">First Name</label>
+                        </div>
+                        
+                        <div class="form-floating">
+                            {{ form.last_name }}
+                            <label for="id_last_name">Last Name</label>
+                        </div>
+                        
+                        <div class="form-floating">
+                            {{ form.password1 }}
+                            <label for="id_password1">Password</label>
+                            {% if form.password1.help_text %}
+                                <div class="form-text">{{ form.password1.help_text }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-floating">
+                            {{ form.password2 }}
+                            <label for="id_password2">Confirm Password</label>
+                            {% if form.password2.help_text %}
+                                <div class="form-text">{{ form.password2.help_text }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        {% if form.errors %}
+                        <div class="alert alert-danger" role="alert">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <small>{{ error }}</small><br>
+                                {% endfor %}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        <button type="submit" class="btn btn-auth">
+                            🚀 Create Account
+                        </button>
+                    </form>
+                    
+                    <div class="auth-links">
+                        <p class="mb-2">Already have an account?</p>
+                        <a href="{% url 'login' %}" class="fw-bold">Sign in instead</a>
+                        <br><br>
+                        <a href="{% url 'home' %}" class="text-muted">← Back to Home</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

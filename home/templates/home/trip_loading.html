@@ -191,7 +191,7 @@
                         }, 1000);
                     } else if (data.status === 'error') {
                         showError();
-                    } else {
+                    } else if (data.status === 'generating' || data.status === 'processing') {
                         // Continue checking
                         if (checkCount < maxChecks) {
                             checkCount++;
@@ -201,6 +201,15 @@
                             if (checkCount % 10 === 0 && currentStep < steps.length - 1) {
                                 updateProgress();
                             }
+                        } else {
+                            showError();
+                        }
+                    } else {
+                        // Unknown status - continue checking but log it
+                        console.log('Unknown status:', data.status);
+                        if (checkCount < maxChecks) {
+                            checkCount++;
+                            setTimeout(checkTripStatus, 2000);
                         } else {
                             showError();
                         }

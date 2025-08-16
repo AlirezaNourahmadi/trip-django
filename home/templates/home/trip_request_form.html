@@ -1,9 +1,159 @@
 {% extends "base.html" %}
 
+{% block extra_css %}
+<style>
+    .form-hero {
+        background: var(--accent-gradient);
+        padding: 4rem 0;
+        color: white;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .form-hero::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><path fill="%23ffffff08" d="M0,300L100,250C200,200,400,100,600,150C800,200,1000,400,1100,450L1200,500V1000H0Z"/></svg>');
+        animation: float 12s ease-in-out infinite;
+    }
+    
+    .form-hero h1 {
+        font-size: 3rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        position: relative;
+        z-index: 2;
+    }
+    
+    .form-hero p {
+        font-size: 1.3rem;
+        opacity: 0.9;
+        position: relative;
+        z-index: 2;
+    }
+    
+    .form-container {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-radius: 20px;
+        box-shadow: var(--card-shadow);
+        margin-top: -3rem;
+        position: relative;
+        z-index: 3;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 3rem;
+    }
+    
+    .form-section {
+        margin-bottom: 2rem;
+    }
+    
+    .form-section h3 {
+        color: #2c3e50;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e9ecef;
+        font-weight: 600;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+        position: relative;
+    }
+    
+    .form-group label {
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+    
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+    }
+    
+    @media (max-width: 768px) {
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .suggestions-container {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background: white;
+        border-radius: 12px;
+        box-shadow: var(--card-shadow);
+        border: 1px solid rgba(0,0,0,0.1);
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    
+    .suggestion-item {
+        padding: 1rem;
+        border-bottom: 1px solid #f8f9fa;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+    
+    .suggestion-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .suggestion-item.active {
+        background: var(--primary-gradient);
+        color: white;
+    }
+    
+    .btn-submit {
+        background: var(--accent-gradient);
+        border: none;
+        color: white;
+        padding: 1rem 3rem;
+        border-radius: 50px;
+        font-weight: 600;
+        font-size: 1.1rem;
+        transition: var(--transition);
+        width: 100%;
+        margin-top: 2rem;
+    }
+    
+    .btn-submit:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 30px rgba(168, 237, 234, 0.4);
+        color: white;
+    }
+    
+    .form-icon {
+        color: var(--primary-gradient);
+        margin-right: 0.5rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-  <div class="container">
-    <h2>Create Trip Request</h2>
-    <form method="POST" enctype="multipart/form-data" id="trip-form">
+<div class="form-hero">
+    <div class="container">
+        <h1>🗺️ Plan Your Perfect Trip</h1>
+        <p>Tell us about your dream destination and we'll create a personalized itinerary</p>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="form-container">
+                <form method="POST" enctype="multipart/form-data" id="trip-form">
         {% csrf_token %}
         
         <div class="form-group">

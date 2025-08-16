@@ -6,13 +6,14 @@ import logging
 import io
 import re
 import urllib.parse
+import urllib.request
 import googlemaps
 from django.core.files.base import ContentFile
 from concurrent.futures import ThreadPoolExecutor
 import asyncio
 from .models import UserTripHistory
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.colors import black, blue
 from reportlab.lib.units import inch
@@ -54,14 +55,28 @@ class GoogleMapsService:
                 # Get detailed information including photos
                 if place.get('place_id'):
                     try:
+                        # Get photos using the correct field name
                         detailed_place = self.gmaps.place(
                             place_id=place['place_id'],
                             fields=['name', 'photo', 'rating', 'formatted_address', 'geometry', 'type']
                         )
                         
-                        if 'photo' in detailed_place['result']:
+                        logger.info(f"Place details for {location_name}: {list(detailed_place['result'].keys())}")
+                        
+                        # Check for photos field - API returns 'photos' in result, not 'photo'
+                        photos_data = None
+                        if 'photos' in detailed_place['result']:
+                            photos_data = detailed_place['result']['photos']
+                            logger.info(f"Found 'photos' field with {len(photos_data)} photos")
+                        elif 'photo' in detailed_place['result']:
+                            photos_data = detailed_place['result']['photo']
+                            logger.info(f"Found 'photo' field with {len(photos_data)} photos")
+                        else:
+                            logger.warning(f"No photo field found for {location_name}")
+                        
+                        if photos_data:
                             # Get up to 3 photos for each location
-                            photos = detailed_place['result']['photo'][:3]
+                            photos = photos_data[:3]
                             for photo in photos:
                                 photo_reference = photo.get('photo_reference')
                                 if photo_reference:
@@ -73,6 +88,10 @@ class GoogleMapsService:
                                         'height': photo.get('height', 300),
                                         'attributions': photo.get('html_attributions', [])
                                     })
+                                    logger.info(f"Added photo URL for {location_name}: {photo_url}")
+                                else:
+                                    logger.warning(f"No photo_reference found in photo data: {photo}")
+                        
                     except Exception as photo_error:
                         logger.warning(f"Error fetching photos for {location_name}: {photo_error}")
                 
@@ -100,20 +119,36 @@ class GoogleMapsService:
     
     def extract_locations_from_text(self, text):
         """Extract potential location names from text using regex patterns"""
+        # Process text line by line to avoid multiline capture issues
+        lines = text.split('\n')
+        locations = set()
+        
         # Common patterns for locations in travel itineraries
         patterns = [
-            r'(?:visit|go to|explore|see|at|near)\s+([A-Z][a-zA-Z\s]+(?:Museum|Park|Palace|Temple|Church|Cathedral|Market|Beach|Square|Tower|Bridge|Garden|Gallery|Stadium|Airport|Station|Restaurant|Café|Hotel))',
-            r'([A-Z][a-zA-Z\s]+(?:Museum|Park|Palace|Temple|Church|Cathedral|Market|Beach|Square|Tower|Bridge|Garden|Gallery|Stadium|Airport|Station))',
-            r'\b([A-Z][a-zA-Z]+(?:\s[A-Z][a-zA-Z]+)*\s(?:Street|Avenue|Road|Boulevard|Lane))\b',
+            # Specific attraction patterns
+            r'(?:visit|go to|explore|see|at|near)\s+([A-Z][a-zA-Z\s-]+(?:Tower|Museum|Palace|Temple|Church|Cathedral|Market|Beach|Square|Bridge|Garden|Gallery|Stadium|Airport|Station|Basilica|Arc|Castle))',
+            # Direct attraction names
+            r'\b([A-Z][a-zA-Z\s-]+(?:Tower|Museum|Palace|Temple|Church|Cathedral|Market|Beach|Square|Bridge|Garden|Gallery|Stadium|Airport|Station|Basilica|Arc|Castle))\b',
+            # Famous landmarks (specific patterns)
+            r'\b(Eiffel Tower|Louvre Museum|Notre-Dame Cathedral|Arc de Triomphe|Sacré-Cœur Basilica|Times Square|Central Park|Big Ben|London Eye|Statue of Liberty|Golden Gate Bridge)\b',
+            # Street addresses
+            r'\b([A-Z][a-zA-Z\s]+(?:Street|Avenue|Road|Boulevard|Lane))\b',
+            # Hotels and restaurants
             r'\b([A-Z][a-zA-Z\s]+(?:Restaurant|Café|Hotel|Inn|Lodge))\b'
         ]
         
-        locations = set()
-        for pattern in patterns:
-            matches = re.findall(pattern, text, re.IGNORECASE)
-            for match in matches:
-                if len(match.strip()) > 3:  # Filter out very short matches
-                    locations.add(match.strip())
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+                
+            for pattern in patterns:
+                matches = re.findall(pattern, line, re.IGNORECASE)
+                for match in matches:
+                    if len(match.strip()) > 3:  # Filter out very short matches
+                        clean_match = re.sub(r'^[^a-zA-Z]+', '', match.strip())  # Remove leading non-letters
+                        if clean_match:
+                            locations.add(clean_match)
         
         return list(locations)
     
@@ -191,20 +226,43 @@ When users attach files or images:
 
 Always maintain a friendly, professional tone and focus specifically on travel-related assistance."""
 
-    def generate_trip_plan(self, trip_request):
-        """Generate a trip plan text based on the trip request details"""
+    def generate_optimized_trip_plan(self, trip_request, user=None):
+        """Generate a complete, enhanced trip plan in a single OpenAI API call"""
+        # Get user context for personalization
+        user_context = self.get_user_context(user) if user else ""
+        
+        # Get any available location data
+        location_data = self.get_location_data(trip_request.destination) if trip_request.destination else []
+        
         prompt = f"""
-You are a travel assistant AI. Create a detailed trip plan based on the following user inputs:
+You are an expert travel assistant AI. Create a comprehensive, detailed, and enhanced trip plan based on the following user inputs:
 
-Destination: {trip_request.destination}
-Country: {trip_request.destination_country or 'Not specified'}
-Duration: {trip_request.duration} days
-Budget: {trip_request.budget}
-Number of travelers: {trip_request.number_of_travelers}
-Interests and hobbies: {trip_request.interests}
-Daily budget: {trip_request.daily_budget}
-Transportation preferences: {trip_request.transportation_preferences}
-Experience style: {trip_request.experience_style}
+TRIP DETAILS:
+- Destination: {trip_request.destination}
+- Country: {trip_request.destination_country or 'Not specified'}
+- Duration: {trip_request.duration} days
+- Budget: ${trip_request.budget} total
+- Number of travelers: {trip_request.number_of_travelers}
+- Interests: {trip_request.interests or 'General exploration'}
+- Daily budget: ${trip_request.daily_budget or 'Not specified'}
+- Transportation preferences: {trip_request.transportation_preferences or 'Flexible'}
+- Experience style: {trip_request.experience_style or 'Balanced'}
+
+USER CONTEXT:
+{user_context if user_context else 'No previous travel history available'}
+
+AVAILABLE LOCATION DATA:
+{location_data if location_data else 'Use your general knowledge for recommendations'}
+
+CREATE A COMPREHENSIVE PLAN INCLUDING:
+1. Detailed day-by-day itinerary with specific locations, attractions, and activities
+2. Specific restaurant and hotel recommendations with estimated costs
+3. Transportation details and timing recommendations
+4. Cultural insights and local tips
+5. Hidden gems and local experiences
+6. Accurate cost breakdowns for {trip_request.number_of_travelers} travelers
+7. Practical information (opening hours, best times to visit)
+8. Daily budget summaries
 
 IMPORTANT FORMATTING RULES:
 - NEVER use hashtags (#), asterisks (*), or other special characters for headers or emphasis
@@ -212,27 +270,26 @@ IMPORTANT FORMATTING RULES:
 - Use emojis like 🌟, 🗓️, 📍, 🏨, 🍽️, 🎯, 🚗, 💰, ⏰, 🎨, 🏛️, 🌊, 🎪 etc.
 - Make the content visually appealing with appropriate emojis
 - Use simple text formatting without markdown symbols
-
-Please provide a day-by-day itinerary with recommendations for activities, dining, transportation, and accommodations. Make sure to optimize the plan according to the user's budget and preferences.
+- Include specific location names for photo integration
 
 Format example:
-🌟 Amazing Trip to [Destination]
+🌟 Amazing Trip to [Destination] Enhanced Plan
 
-🗓️ Day 1: Arrival and Exploration
-🏨 Check into your hotel
-🍽️ Lunch at local restaurant
-📍 Visit main attraction
-💰 Estimated cost: $XX
+🗓️ Day 1: Arrival and First Impressions
+- 🚗 Airport Transfer: Details about transportation options and costs
+- 🏨 Check into [Specific Hotel Name]: Description and cost for {trip_request.number_of_travelers} people
+- 🍽️ Lunch at [Specific Restaurant]: Description and cost estimate
+- 📍 Visit [Specific Attraction]: Detailed description, opening hours, entry fees
+- 💰 Daily total: $XX for {trip_request.number_of_travelers} travelers
+- ⏰ Timing Tips: Best times and practical advice
 
-🗓️ Day 2: Cultural Experience
-🎨 Museum visit
-🍕 Try local cuisine
-⏰ Best time: Morning
+Please provide a rich, detailed itinerary that makes full use of the budget and creates an amazing travel experience.
 """
         messages = [
             {"role": "system", "content": self.get_travel_assistant_prompt()},
             {"role": "user", "content": prompt}
         ]
+        
         # Retry logic for API calls
         max_retries = 3
         for attempt in range(max_retries):
@@ -254,21 +311,25 @@ Format example:
                 
                 if attempt == max_retries - 1:  # Last attempt
                     if "timeout" in error_message.lower() or "timed out" in error_message.lower():
-                        logger.error(f"Request timed out.")
+                        logger.error(f"Request timed out after {max_retries} attempts.")
                         raise Exception("Request timed out.")
                     elif "connection" in error_message.lower():
-                        logger.error(f"Connection error.")
+                        logger.error(f"Connection error after {max_retries} attempts.")
                         raise Exception("Connection error.")
-                    elif "rate_limit" in error_message.lower() or "quota" in error_message.lower():
-                        logger.error(f"API rate limit or quota exceeded.")
-                        raise Exception("API rate limit exceeded.")
+                    elif "rate_limit" in error_message.lower() or "quota" in error_message.lower() or "insufficient_quota" in error_message.lower():
+                        logger.warning(f"API rate limit or quota exceeded. Will use fallback plan.")
+                        raise Exception("API quota exceeded.")
                     else:
-                        logger.error(f"Error generating trip plan: {e}")
+                        logger.error(f"Error generating optimized trip plan: {e}")
                         raise Exception(f"Error generating trip plan: {e}")
                 
                 # Wait before retry (exponential backoff)
                 import time
                 time.sleep(2 ** attempt)
+    
+    def generate_trip_plan(self, trip_request):
+        """Legacy method - redirect to optimized version"""
+        return self.generate_optimized_trip_plan(trip_request)
 
 
 
@@ -337,36 +398,40 @@ Format example:
             # Get location data
             location_data = self.get_location_data(destination) if destination else []
             
-
-
-    # Create enhanced prompt
+            # Create enhanced prompt
             prompt = f"""
-            Based on this initial travel plan:
-            {initial_plan}
-            
-            {user_context}
-            
-            Please enhance this plan by:
-            1. Adding specific location images and visual descriptions
-            2. Including detailed schedules and opening hours
-            3. Providing accurate cost estimates for {number_of_travelers} travelers
-            4. Adding practical tips based on the user's profile
-            5. Including local insights and hidden gems
-            6. Suggesting optimal timing for each activity
-            
-            Available location data: {location_data}
-            
-            Format the response as a comprehensive, enhanced travel itinerary with:
-            - Day-by-day breakdown
-            - Cost estimates per activity/meal for {number_of_travelers} people
-            - Timing recommendations
-            - Visual descriptions of locations
-            - Practical travel tips
-            - Local recommendations
-            - Use userfriendly and readable format for response
-            - DO NOT USE # for response instead you can use emojies for response
-            
-            """
+Based on this initial travel plan:
+{initial_plan}
+
+{user_context if user_context else ''}
+
+Please enhance this plan by:
+1. Adding specific location details and visual descriptions
+2. Including detailed schedules and opening hours where applicable
+3. Providing accurate cost estimates for {number_of_travelers} travelers
+4. Adding practical tips and local insights
+5. Including hidden gems and local recommendations
+6. Suggesting optimal timing for each activity
+7. Adding daily budget breakdowns
+
+Available location data: {location_data if location_data else 'None available, use general knowledge'}
+
+IMPORTANT FORMATTING RULES:
+- NEVER use hashtags (#), asterisks (*), or other special characters for headers or emphasis
+- Always use relevant emojis at the beginning of sections and activities
+- Use emojis like 🌟, 🗓️, 📍, 🏨, 🍽️, 🎯, 🚗, 💰, ⏰, 🎨, 🏛️, 🌊, 🎪 etc.
+- Make the content visually appealing with appropriate emojis
+- Use simple text formatting without markdown symbols
+
+Format the response as a comprehensive, enhanced travel itinerary with:
+- Day-by-day breakdown
+- Cost estimates per activity/meal for {number_of_travelers} people
+- Timing recommendations
+- Visual descriptions of locations
+- Practical travel tips
+- Local recommendations
+- Daily budget summaries
+"""
             
             messages = [
                 {"role": "system", "content": self.get_travel_assistant_prompt()},
@@ -661,8 +726,11 @@ Format example:
         
         return f"I'm ready to help you with your upcoming trip to {destination}! I have all your trip details and can assist with planning, budgeting, activities, and any questions you might have. How can I help make your {duration}-day trip amazing?"
 def generate_trip_plan_pdf(trip_plan_text, destination_city=None):
-    """Generate a professional PDF using ReportLab with emoji support and Google Maps links"""
+    """Generate a professional PDF using ReportLab with emoji support, Google Maps links and location photos"""
     try:
+        from reportlab.platypus import Table, TableStyle
+        from reportlab.lib import colors
+        
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=letter,
                                 leftMargin=50, rightMargin=50,
@@ -741,8 +809,23 @@ def generate_trip_plan_pdf(trip_plan_text, destination_city=None):
         
         story = []
         
-        # Extract locations from the text for Google Maps links
+        # Extract locations from the text for Google Maps links and photos
         locations = gmaps_service.extract_locations_from_text(trip_plan_text)
+        logger.info(f"Extracted {len(locations)} locations: {locations}")
+        
+        # Pre-fetch location details to avoid duplicates
+        location_details = {}
+        for location in locations:
+            try:
+                place_details = gmaps_service.get_place_details(location, destination_city)
+                if place_details:
+                    location_details[location] = place_details
+                    logger.info(f"Found {len(place_details.get('photos', []))} photos for {location}")
+                else:
+                    logger.warning(f"No place details found for {location}")
+            except Exception as e:
+                logger.error(f"Error getting place details for {location}: {e}")
+                location_details[location] = None
         
         # Process the content
         lines = trip_plan_text.split('\n')
@@ -806,6 +889,73 @@ def generate_trip_plan_pdf(trip_plan_text, destination_city=None):
                 logger.warning(f"Error formatting line '{cleaned_line}': {e}")
                 story.append(Paragraph(line_with_links, styles['Activity']))
         
+        # Add photos section for locations with images
+        photos_added = set()  # Track which locations we've added photos for
+        
+        if any(details and details.get('photos') for details in location_details.values()):
+            story.append(Spacer(1, 30))
+            story.append(Paragraph('📸 Location Photos', styles['DayHeader']))
+            story.append(Spacer(1, 15))
+            
+            for location, details in location_details.items():
+                if details and details.get('photos') and location not in photos_added:
+                    try:
+                        # Add location name
+                        location_header = f'📍 {details.get("name", location)}'
+                        if details.get('rating'):
+                            location_header += f' ⭐ {details["rating"]}'
+                        story.append(Paragraph(location_header, styles['SubActivity']))
+                        
+                        # Create table for photos (up to 3 per row)
+                        photos = details['photos'][:3]  # Limit to 3 photos
+                        photo_data = []
+                        
+                        for photo_info in photos:
+                            try:
+                                # Fetch image from Google
+                                logger.info(f"Fetching image from URL: {photo_info['url']}")
+                                response = urllib.request.urlopen(photo_info['url'], timeout=10)
+                                img_data = response.read()
+                                
+                                # Create ReportLab Image object
+                                img_buffer = io.BytesIO(img_data)
+                                img = Image(img_buffer, width=1.8*inch, height=1.2*inch)
+                                photo_data.append(img)
+                                logger.info(f"Successfully added image for {location}")
+                                
+                            except Exception as img_error:
+                                logger.warning(f"Failed to fetch/process image for {location}: {img_error}")
+                                # Add placeholder text instead of image
+                                photo_data.append(Paragraph(f'📷 Photo unavailable', styles['SubActivity']))
+                        
+                        # Add photos to story
+                        if photo_data:
+                            # Create a table with photos in a single row
+                            if len(photo_data) == 1:
+                                photo_table_data = [photo_data]
+                            else:
+                                photo_table_data = [photo_data]  # All in one row
+                            
+                            photo_table = Table(photo_table_data, colWidths=[1.8*inch] * len(photo_data))
+                            photo_table.setStyle(TableStyle([
+                                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                                ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                                ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+                                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                            ]))
+                            
+                            story.append(photo_table)
+                            story.append(Spacer(1, 15))
+                            
+                        photos_added.add(location)
+                        
+                    except Exception as location_error:
+                        logger.error(f"Error adding photos for {location}: {location_error}")
+                        story.append(Paragraph(f'📷 Photos unavailable for {location}', styles['SubActivity']))
+                        story.append(Spacer(1, 10))
+        
         # Add separator before footer
         story.append(Spacer(1, 30))
         
@@ -860,5 +1010,144 @@ For the best experience, please try generating the PDF again.
         logger.error(f"Fallback text generation also failed: {e}")
         # Last resort: return basic text file
         return ContentFile(trip_plan_text.encode('utf-8'), 'trip_plan.txt')
+def generate_enhanced_fallback_plan(trip_request):
+    """Generate an enhanced fallback plan with destination-specific recommendations"""
+    destination = trip_request.destination
+    duration = trip_request.duration
+    travelers = trip_request.number_of_travelers
+    budget = trip_request.budget
+    interests = trip_request.interests or "general exploration"
+    
+    # Basic destination-specific content
+    destination_guides = {
+        "london": {
+            "highlights": ["Big Ben", "Tower Bridge", "British Museum", "Hyde Park", "Buckingham Palace"],
+            "food": ["Fish and chips", "Sunday roast", "Afternoon tea", "Pub food"],
+            "transport": "Use the London Underground (Tube) - get an Oyster Card",
+            "budget_tip": "Many museums are free. Book theatre shows in advance."
+        },
+        "paris": {
+            "highlights": ["Eiffel Tower", "Louvre Museum", "Notre-Dame", "Champs-Élysées", "Montmartre"],
+            "food": ["Croissants", "French pastries", "Bistro meals", "Wine tasting"],
+            "transport": "Metro system is efficient - buy day passes",
+            "budget_tip": "Visit during happy hour, picnic in parks"
+        },
+        "tokyo": {
+            "highlights": ["Senso-ji Temple", "Shibuya Crossing", "Tokyo Tower", "Meiji Shrine", "Akihabara"],
+            "food": ["Sushi", "Ramen", "Tempura", "Street food"],
+            "transport": "JR Pass for trains, IC cards for local transport",
+            "budget_tip": "Convenience store meals, free temple visits"
+        },
+        "rome": {
+            "highlights": ["Colosseum", "Vatican City", "Trevi Fountain", "Roman Forum", "Pantheon"],
+            "food": ["Pizza", "Pasta", "Gelato", "Espresso"],
+            "transport": "Walking is best, metro for longer distances",
+            "budget_tip": "Free churches, aperitivo culture"
+        },
+        "barcelona": {
+            "highlights": ["Sagrada Familia", "Park Güell", "La Rambla", "Gothic Quarter", "Beach"],
+            "food": ["Tapas", "Paella", "Sangria", "Jamón"],
+            "transport": "Metro and walking, rent bikes",
+            "budget_tip": "Free museums on Sundays, beach days"
+        }
+    }
+    
+    # Try to match destination
+    dest_key = None
+    for key in destination_guides.keys():
+        if key.lower() in destination.lower():
+            dest_key = key
+            break
+    
+    if dest_key:
+        guide = destination_guides[dest_key]
+        highlights = ", ".join(guide["highlights"][:3])
+        food_items = ", ".join(guide["food"][:3])
+        transport_tip = guide["transport"]
+        budget_tip = guide["budget_tip"]
+    else:
+        highlights = "major landmarks and attractions"
+        food_items = "local cuisine and specialties"
+        transport_tip = "Research local transportation options"
+        budget_tip = "Look for free activities and local deals"
+    
+    # Calculate daily budget
+    daily_budget = float(budget) / duration / travelers
+    
+    return f"""
+🌟 Travel Guide for {destination}
+
+📍 Your Trip Overview:
+• Destination: {destination}
+• Duration: {duration} days
+• Travelers: {travelers}
+• Total Budget: ${budget}
+• Daily Budget per Person: ${daily_budget:.0f}
+• Your Interests: {interests}
+
+🗓️ Day-by-Day Framework:
+
+Day 1: Arrival & First Impressions
+• 🏨 Check into accommodation (budget: ${daily_budget*0.4:.0f}/person)
+• 🍽️ Welcome lunch - try {food_items.split(', ')[0] if ',' in food_items else 'local cuisine'}
+• 📍 Visit {highlights.split(', ')[0] if ',' in highlights else 'main attraction'}
+• 🚶 Evening stroll and orientation walk
+• 💰 Daily estimate: ${daily_budget:.0f} per person
+
+{f'''Day 2: Main Attractions
+• 🌅 Early start to {highlights.split(', ')[1] if len(highlights.split(', ')) > 1 else 'popular sites'}
+• 🍽️ Lunch featuring {food_items.split(', ')[1] if len(food_items.split(', ')) > 1 else 'regional dishes'}
+• 📱 Afternoon at {highlights.split(', ')[2] if len(highlights.split(', ')) > 2 else 'cultural sites'}
+• 🌆 Evening entertainment
+• 💰 Daily estimate: ${daily_budget:.0f} per person''' if duration >= 2 else ''}
+
+{f'''Day 3: Cultural Immersion
+• 🏛️ Museum or cultural site visit
+• 🥘 Cooking class or food tour
+• 🛍️ Shopping and souvenir hunting
+• 📸 Photo opportunities at scenic spots
+• 💰 Daily estimate: ${daily_budget:.0f} per person''' if duration >= 3 else ''}
+
+{f'''Day {duration}: Departure
+• 🧳 Final shopping or relaxation
+• 🍽️ Farewell meal
+• 🚗 Airport/station transfer
+• ✈️ Safe travels home!''' if duration > 1 else ''}
+
+💡 Essential Tips:
+• 🚌 Transportation: {transport_tip}
+• 💰 Budget Hack: {budget_tip}
+• 📱 Download offline maps and translation apps
+• 💳 Notify banks of travel plans
+• 🌦 Pack weather-appropriate clothing
+
+🍽️ Must-Try Foods:
+{chr(10).join([f'• {food}' for food in food_items.split(', ')])}
+
+📍 Top Attractions:
+{chr(10).join([f'• {attraction}' for attraction in highlights.split(', ')])}
+
+🏨 Accommodation Tips:
+• Book central locations to save on transport
+• Check cancellation policies
+• Read recent reviews
+• Consider alternative accommodations (Airbnb, hostels)
+
+💳 Budget Breakdown (per person, per day):
+• Accommodation: ${daily_budget*0.4:.0f} (40%)
+• Food: ${daily_budget*0.3:.0f} (30%)
+• Activities: ${daily_budget*0.2:.0f} (20%)
+• Transport/Misc: ${daily_budget*0.1:.0f} (10%)
+
+📞 Before You Go:
+• Research visa requirements
+• Check weather forecasts
+• Book popular attractions in advance
+• Learn basic local phrases
+• Purchase travel insurance
+
+🌐 This enhanced guide was generated to help you plan an amazing trip to {destination}! For real-time information and bookings, consult current travel resources.
+"""
+
 # Create a singleton instance
 ai_service = AIService()

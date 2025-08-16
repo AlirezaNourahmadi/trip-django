@@ -8,6 +8,12 @@ class User(AbstractUser):
     travel_style = models.CharField(max_length=100, blank=True, null=True)
     previous_destinations = models.TextField(blank=True, null=True)
     dietary_restrictions = models.CharField(max_length=200, blank=True, null=True)
+    
+    # Google OAuth fields
+    google_id = models.CharField(max_length=100, blank=True, null=True, unique=True)
+    avatar_url = models.URLField(blank=True, null=True)
+    is_google_user = models.BooleanField(default=False)
+    google_profile_data = models.JSONField(default=dict, blank=True)
 
 class Destination(models.Model):
     name = models.CharField(max_length=255)

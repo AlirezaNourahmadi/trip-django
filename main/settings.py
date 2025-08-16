@@ -42,6 +42,15 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sites",  # Required for allauth
+    
+    # Third party apps
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+    
+    # Local apps
     "home.apps.HomeConfig",
 ]
 
@@ -51,6 +60,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "allauth.account.middleware.AccountMiddleware",  # Required for django-allauth
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -141,8 +151,62 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # OpenAI Configuration
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4-turbo-preview')
-MAX_TOKENS = int(os.getenv('MAX_TOKENS', '10000'))
+MAX_TOKENS = int(os.getenv('MAX_TOKENS', '4000'))
 TEMPERATURE = float(os.getenv('TEMPERATURE', '0.7'))
 
 # Google Maps API Configuration
 GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY')
+
+# Django Sites Framework
+SITE_ID = 1
+
+# Django Allauth Configuration
+AUTHENTICATION_BACKENDS = [
+    # Default Django backend
+    'django.contrib.auth.backends.ModelBackend',
+    # Allauth backend
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
+# Allauth settings
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_EMAIL_VERIFICATION = 'optional'  # Change to 'mandatory' if you want email verification
+ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_USER_MODEL_EMAIL_FIELD = 'email'
+ACCOUNT_LOGOUT_ON_GET = True
+ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
+
+# Social account settings
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_EMAIL_REQUIRED = True
+SOCIALACCOUNT_EMAIL_VERIFICATION = 'optional'
+SOCIALACCOUNT_QUERY_EMAIL = True
+
+# Google OAuth2 settings
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        },
+        'OAUTH_PKCE_ENABLED': True,
+    }
+}
+
+# Google OAuth Credentials (add these to your .env file)
+GOOGLE_OAUTH2_CLIENT_ID = os.getenv('GOOGLE_OAUTH2_CLIENT_ID')
+GOOGLE_OAUTH2_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET')
+
+# Redirect URLs
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/'
+ACCOUNT_LOGOUT_REDIRECT_URL = '/'
+
+# Custom Adapters
+SOCIALACCOUNT_ADAPTER = 'home.adapters.CustomSocialAccountAdapter'

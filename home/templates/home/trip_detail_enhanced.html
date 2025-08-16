@@ -167,6 +167,7 @@
 {% endblock %}
 
 {% block content %}
+{% csrf_token %}
 <div class="container mt-4">
     <!-- Trip Overview -->
     <div class="trip-overview">
@@ -213,13 +214,17 @@
         </div>
         
         <!-- Download PDF -->
-        {% if plan.pdf_file %}
         <div class="text-center mt-4">
+            {% if plan.pdf_file %}
             <a href="{{ plan.pdf_file.url }}" class="btn btn-success btn-lg" target="_blank">
                 📄 Download PDF Itinerary
             </a>
+            {% else %}
+            <button id="generatePdfBtn" class="btn btn-warning btn-lg" onclick="generatePDF()">
+                📄 Generate PDF Itinerary
+            </button>
+            {% endif %}
         </div>
-        {% endif %}
     </div>
     {% else %}
     <div class="alert alert-info">
@@ -367,6 +372,46 @@ async function loadPhotosForLocation(locationName, cardElement) {
             loadingIndicator.remove();
         }
     }
+}
+
+// PDF Generation function
+function generatePDF() {
+    const button = document.getElementById('generatePdfBtn');
+    const originalText = button.innerHTML;
+    
+    // Show loading state
+    button.innerHTML = '⏳ Generating PDF...';
+    button.disabled = true;
+    
+    // Make API call to generate PDF
+    fetch(`/api/generate-pdf/{{ trip_request.id }}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value || '',
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Replace button with download link
+            button.outerHTML = `
+                <a href="${data.pdf_url}" class="btn btn-success btn-lg" target="_blank">
+                    📄 Download PDF Itinerary
+                </a>
+            `;
+        } else {
+            alert('Error generating PDF: ' + (data.error || 'Unknown error'));
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error generating PDF. Please try again.');
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
 }
 </script>
 {% endblock %}

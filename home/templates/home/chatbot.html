@@ -2,27 +2,185 @@
 
 {% block title %}Chatbot - Trip-Django{% endblock %}
 
+{% block extra_css %}
+<style>
+    .chat-hero {
+        background: var(--primary-gradient);
+        padding: 3rem 0;
+        color: white;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .chat-hero::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><circle fill="%23ffffff08" cx="100" cy="100" r="50"/><circle fill="%23ffffff05" cx="900" cy="200" r="80"/><circle fill="%23ffffff03" cx="500" cy="300" r="60"/></svg>');
+        animation: float 8s ease-in-out infinite;
+    }
+    
+    .chat-hero h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        position: relative;
+        z-index: 2;
+    }
+    
+    .chat-hero p {
+        font-size: 1.2rem;
+        opacity: 0.9;
+        position: relative;
+        z-index: 2;
+    }
+    
+    .chat-main {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-radius: 20px;
+        box-shadow: var(--card-shadow);
+        margin-top: -2rem;
+        position: relative;
+        z-index: 3;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .chat-header {
+        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 20px 20px 0 0;
+        display: flex;
+        justify-content: between;
+        align-items: center;
+    }
+    
+    .chat-controls .btn {
+        margin-left: 0.5rem;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: var(--transition);
+    }
+    
+    .chat-controls .btn:hover {
+        transform: scale(1.1);
+    }
+    
+    .chat-input-area {
+        background: rgba(248, 249, 250, 0.8);
+        padding: 1.5rem;
+        border-radius: 0 0 20px 20px;
+    }
+    
+    .modern-input-group {
+        background: white;
+        border-radius: 50px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        border: 2px solid rgba(0,0,0,0.05);
+        transition: var(--transition);
+        overflow: hidden;
+    }
+    
+    .modern-input-group:focus-within {
+        border-color: #667eea;
+        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.2);
+        transform: translateY(-2px);
+    }
+    
+    .modern-input-group .form-control {
+        border: none;
+        background: transparent;
+        padding: 1rem 1.5rem;
+        font-size: 1rem;
+    }
+    
+    .modern-input-group .form-control:focus {
+        box-shadow: none;
+        border: none;
+    }
+    
+    .modern-input-group .btn {
+        border: none;
+        background: transparent;
+        color: #6c757d;
+        padding: 1rem;
+        transition: var(--transition);
+    }
+    
+    .modern-input-group .btn:hover {
+        color: #667eea;
+        transform: scale(1.1);
+    }
+    
+    .btn-send {
+        background: var(--primary-gradient) !important;
+        color: white !important;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        margin-left: 0.5rem;
+    }
+    
+    .btn-send:hover {
+        transform: scale(1.1) !important;
+        color: white !important;
+    }
+    
+    .alert-modern {
+        border-radius: 15px;
+        border: none;
+        backdrop-filter: blur(10px);
+    }
+    
+    .alert-info {
+        background: rgba(102, 126, 234, 0.1);
+        color: #667eea;
+    }
+    
+    .alert-warning {
+        background: rgba(255, 193, 7, 0.1);
+        color: #856404;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
+<div class="chat-hero">
+    <div class="container">
+        <h1>🤖 AI Travel Assistant</h1>
+        <p>Powered by GPT-4 • Your personal travel planning companion</p>
+    </div>
+</div>
+
+<div class="container">
     <div class="chat-container">
-        <div class="row">
-            <div class="col-md-12">
-                <div class="card">
-                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="chat-main">
+                    <div class="chat-header">
                         <div>
-                            <h4 class="mb-0">🤖 Trip Assistant Chatbot</h4>
-                            <small>Powered by GPT-4 Turbo • Ask me anything about your travel plans!</small>
+                            <h4 class="mb-1">✨ Travel Chat</h4>
+                            <small class="opacity-75">Ask me anything about destinations, planning, or travel tips!</small>
                         </div>
-                        <div class="btn-group">
-                            <button class="btn btn-sm btn-outline-light" id="clearChatBtn" title="Clear Chat">
+                        <div class="chat-controls">
+                            <button class="btn btn-outline-light" id="clearChatBtn" title="Clear Chat">
                                 <i class="fas fa-trash"></i>
                             </button>
-                            <button class="btn btn-sm btn-outline-light" id="voiceToggleBtn" title="Toggle Voice Recognition">
+                            <button class="btn btn-outline-light" id="voiceToggleBtn" title="Voice Recognition">
                                 <i class="fas fa-microphone"></i>
                             </button>
                         </div>
                     </div>
-                    <div class="card-body">
+                    <div class="chat-body p-0">
                         <div class="chat-messages" id="chatMessages">
                             <div class="message bot-message">
                                 <strong>Assistant:</strong> Hello! I'm your travel assistant. I can help you with trip planning, destination information, and travel advice. You can send me text messages, attach files or images, or use voice messages. How can I assist you today?

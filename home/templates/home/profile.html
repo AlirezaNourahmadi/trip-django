@@ -1,30 +1,191 @@
 {% extends "base.html" %}
 
-{% block content %}
-  <div class="container">
-    <h2>Profile</h2>
-    <p>Username: {{ user.username }}</p>
-    <p>Email: {{ user.email }}</p>
-    <p>Name: {{ user.first_name }} {{ user.last_name }}</p>
-    <p>Date joined: {{ user.date_joined }}</p>
+{% block extra_css %}
+<style>
+    .trip-card {
+        border-left: 5px solid #007bff;
+        transition: all 0.3s ease;
+    }
     
-    <h3>Your Trip Requests</h3>
-    {% for request in user.trip_requests.all %}
-      <div class="card mb-3">
-        <div class="card-body">
-          <h5 class="card-title">{{ request.destination }}</h5>
-          <p class="card-text">Duration: {{ request.duration }} days</p>
-          <p class="card-text">Budget: ${{ request.budget }}</p>
-          <p class="card-text">Created: {{ request.created_at }}</p>
-          <div class="btn-group" role="group" aria-label="Trip actions">
-            <a href="{% url 'trip_request_detail' request.pk %}" class="btn btn-primary">View Details</a>
-            <a href="{% url 'trip_request_update' request.pk %}" class="btn btn-secondary">Update Request</a>
-            <a href="{% url 'chatbot_with_context' request.pk %}" class="btn btn-success">Chat with Bot</a>
-          </div>
+    .trip-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .trip-status {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: bold;
+    }
+    
+    .status-complete {
+        background-color: #28a745;
+        color: white;
+    }
+    
+    .status-pending {
+        background-color: #ffc107;
+        color: #212529;
+    }
+    
+    .pdf-badge {
+        background-color: #dc3545;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.75rem;
+        margin-left: 10px;
+    }
+    
+    .ticket-card {
+        border-left: 5px solid #6c757d;
+        background-color: #f8f9fa;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- User Profile Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="mb-0">👤 Your Profile</h2>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Username:</strong> {{ user.username }}</p>
+                            <p><strong>Email:</strong> {{ user.email }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Name:</strong> {{ user.first_name }} {{ user.last_name }}</p>
+                            <p><strong>Date joined:</strong> {{ user.date_joined|date:"M d, Y" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-    {% empty %}
-      <p>No trip requests yet.</p>
-    {% endfor %}
-  </div>
+    </div>
+    
+    <!-- Trip Requests Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h3>🌍 Your Trip Requests</h3>
+            {% for trip_info in trip_data %}
+            <div class="card mb-3 trip-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h5 class="card-title">
+                                {{ trip_info.trip.destination }}
+                                {% if trip_info.has_plan %}
+                                    <span class="trip-status status-complete">✓ Plan Ready</span>
+                                {% else %}
+                                    <span class="trip-status status-pending">⏳ Generating</span>
+                                {% endif %}
+                                {% if trip_info.has_pdf %}
+                                    <span class="pdf-badge">📄 PDF</span>
+                                {% endif %}
+                            </h5>
+                        </div>
+                        <div class="text-muted">
+                            <small>{{ trip_info.trip.created_at|date:"M d, Y" }}</small>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-2">
+                        <div class="col-md-3">
+                            <p class="card-text mb-1"><strong>Duration:</strong> {{ trip_info.trip.duration }} days</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p class="card-text mb-1"><strong>Budget:</strong> ${{ trip_info.trip.budget }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p class="card-text mb-1"><strong>Travelers:</strong> {{ trip_info.trip.number_of_travelers }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p class="card-text mb-1"><strong>Support Tickets:</strong> {{ trip_info.ticket_count }}</p>
+                        </div>
+                    </div>
+                    
+                    {% if trip_info.trip.interests %}
+                    <p class="card-text mt-2"><strong>Interests:</strong> {{ trip_info.trip.interests|truncatechars:100 }}</p>
+                    {% endif %}
+                    
+                    <div class="btn-group mt-3" role="group" aria-label="Trip actions">
+                        <a href="{% url 'trip_request_detail' trip_info.trip.pk %}" class="btn btn-primary">
+                            📋 View Trip Plan
+                        </a>
+                        {% if trip_info.has_pdf %}
+                        <a href="{{ trip_info.pdf_url }}" class="btn btn-success" target="_blank">
+                            📄 Download PDF
+                        </a>
+                        {% endif %}
+                        <a href="{% url 'trip_request_update' trip_info.trip.pk %}" class="btn btn-secondary">
+                            ✏️ Update Request
+                        </a>
+                        <a href="{% url 'chatbot_with_context' trip_info.trip.pk %}" class="btn btn-info">
+                            💬 Chat Support
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="alert alert-info">
+                <h5>🚀 Ready to plan your first trip?</h5>
+                <p>You haven't created any trip requests yet. Start planning your dream vacation!</p>
+                <a href="{% url 'trip_request_create' %}" class="btn btn-primary">Create Your First Trip Plan</a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Support Tickets Section -->
+    {% if tickets %}
+    <div class="row">
+        <div class="col-12">
+            <h3>🎫 Your Support Tickets</h3>
+            {% for ticket in tickets %}
+            <div class="card mb-3 ticket-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="card-title">
+                                {{ ticket.title }}
+                                <span class="badge badge-{{ ticket.status|yesno:'success,warning,secondary' }}">{{ ticket.get_status_display }}</span>
+                                <span class="badge badge-outline-{{ ticket.priority }}">{{ ticket.get_priority_display }}</span>
+                            </h6>
+                        </div>
+                        <div class="text-muted">
+                            <small>{{ ticket.created_at|date:"M d, Y" }}</small>
+                        </div>
+                    </div>
+                    
+                    <p class="card-text">{{ ticket.description|truncatechars:150 }}</p>
+                    
+                    {% if ticket.trip_request %}
+                    <p class="card-text"><strong>Related Trip:</strong> {{ ticket.trip_request.destination }}</p>
+                    {% endif %}
+                    
+                    <div class="btn-group mt-2" role="group">
+                        {% if ticket.trip_request %}
+                        <a href="{% url 'trip_request_detail' ticket.trip_request.pk %}" class="btn btn-sm btn-primary">
+                            📋 View Trip Plan
+                        </a>
+                        <a href="{% url 'chatbot_with_context' ticket.trip_request.pk %}" class="btn btn-sm btn-info">
+                            💬 Continue Chat
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
 {% endblock %}

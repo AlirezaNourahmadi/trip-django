@@ -13,6 +13,7 @@ from .services import ai_service
 import json
 import uuid
 import logging
+import os
 from threading import Thread
 from datetime import datetime
 
@@ -37,11 +38,7 @@ class TripRequestCreateView(LoginRequiredMixin, View):
             trip_request.user = request.user
             trip_request.save()
 
-            # Generate trip plan text using AIService
-            
-            initial_trip_plan = ai_service.generate_trip_plan(trip_request)
-            
-# Redirect to the loading page before generating the trip plan
+            # Redirect directly to loading page - trip generation happens in background
             return render(request, "home/trip_loading.html", {
                 "trip_request_id": trip_request.pk,
                 "destination_name": trip_request.destination,
@@ -154,7 +151,38 @@ class RegisterView(View):
 
 class ProfileView(LoginRequiredMixin, View):
     def get(self, request):
-        return render(request, 'home/profile.html')
+        # Get user's trip requests with generated plans and tickets
+        trip_requests = request.user.trip_requests.all().order_by('-created_at')
+        
+        # Get user's tickets
+        tickets = request.user.tickets.all().order_by('-created_at')
+        
+        # Prepare trip data with PDF info
+        trip_data = []
+        for trip in trip_requests:
+            trip_info = {
+                'trip': trip,
+                'has_plan': False,
+                'has_pdf': False,
+                'pdf_url': None,
+                'ticket_count': trip.tickets.count()
+            }
+            
+            try:
+                plan = trip.generated_plan
+                trip_info['has_plan'] = bool(plan.content)
+                if plan.pdf_file:
+                    trip_info['has_pdf'] = True
+                    trip_info['pdf_url'] = plan.pdf_file.url
+            except:
+                pass
+            
+            trip_data.append(trip_info)
+        
+        return render(request, 'home/profile.html', {
+            'trip_data': trip_data,
+            'tickets': tickets
+        })
 
 class TripRequestUpdateView(LoginRequiredMixin, View):
     """View for updating existing trip requests"""
@@ -306,82 +334,85 @@ class ChatbotWithContextView(LoginRequiredMixin, View):
         return context
 
 def generate_trip_plan_background(trip_request_id, user_id):
-    """Background function to generate trip plan"""
+    """Optimized background function - single OpenAI call, single PDF generation"""
     try:
         trip_request = TripPlanRequest.objects.get(id=trip_request_id)
         from django.contrib.auth import get_user_model
         User = get_user_model()
         user = User.objects.get(id=user_id)
         
+        # Check if plan already exists to prevent duplicates
         try:
-            # Generate initial trip plan
-            initial_trip_plan = ai_service.generate_trip_plan(trip_request)
-            
-            # Enhance the trip plan with location images, schedules, and costs
-            trip_plan_text = ai_service.generate_enhanced_response(
-                initial_plan=initial_trip_plan,
-                user=user,
-                destination=trip_request.destination,
-                number_of_travelers=trip_request.number_of_travelers
-            )
+            existing_plan = trip_request.generated_plan
+            if existing_plan.content and len(existing_plan.content.strip()) > 50:
+                logger.info(f"Trip plan already exists for request {trip_request_id}, skipping generation")
+                return
+            else:
+                logger.info(f"Existing plan found but incomplete for request {trip_request_id}, regenerating")
+        except GeneratedPlan.DoesNotExist:
+            logger.info(f"No existing plan for request {trip_request_id}, starting generation")
+        
+        try:
+            # SINGLE OPTIMIZED API CALL - generate complete enhanced plan
+            logger.info(f"Starting optimized trip generation for request {trip_request_id}")
+            trip_plan_text = ai_service.generate_optimized_trip_plan(trip_request, user)
+            logger.info(f"Generated {len(trip_plan_text)} characters of trip content")
             
         except Exception as e:
             error_msg = str(e)
-            logger.error(f"Error generating trip plan: {error_msg}")
+            logger.error(f"Error generating optimized trip plan: {error_msg}")
             
-            # Create a fallback trip plan
-            trip_plan_text = f"""
-🌟 Trip Plan for {trip_request.destination}
-
-We encountered some technical difficulties generating your detailed itinerary, but here's a basic framework for your {trip_request.duration}-day trip:
-
-📍 Destination: {trip_request.destination}
-👥 Travelers: {trip_request.number_of_travelers}
-💰 Budget: ${trip_request.budget}
-⏱️ Duration: {trip_request.duration} days
-
-🎯 Your Interests: {trip_request.interests or 'Explore and discover'}
-
-Day 1: Arrival and Initial Exploration
-• Arrive at your destination
-• Check into accommodation
-• Explore the local area
-• Try local cuisine for dinner
-
-Day 2-{max(2, trip_request.duration-1)}: Main Activities
-• Visit top attractions based on your interests
-• Experience local culture and traditions
-• Try recommended restaurants
-• Take photos and create memories
-
-Day {trip_request.duration}: Departure
-• Final activities or shopping
-• Prepare for departure
-• Safe travels home!
-
-💡 Note: This is a basic itinerary due to temporary technical issues. For a detailed, personalized plan, please try generating your trip plan again later or contact our support team.
-
-🗺️ We recommend researching specific attractions, restaurants, and activities in {trip_request.destination} that match your interests: {trip_request.interests or 'general tourism'}
-            """
+            # Create an enhanced fallback trip plan
+            from .services import generate_enhanced_fallback_plan
+            trip_plan_text = generate_enhanced_fallback_plan(trip_request)
         
         try:
-            # Generate PDF file from trip plan text with Google Maps links
-            pdf_content = generate_trip_plan_pdf(trip_plan_text, trip_request.destination)
+            # Create or update the GeneratedPlan (prevent duplicates)
+            generated_plan, created = GeneratedPlan.objects.get_or_create(
+                trip_request=trip_request,
+                defaults={'content': trip_plan_text}
+            )
             
-            # Save GeneratedPlan instance
-            generated_plan, created = GeneratedPlan.objects.get_or_create(trip_request=trip_request)
-            generated_plan.content = trip_plan_text
-            generated_plan.pdf_file.save(f"trip_plan_{trip_request.id}.pdf", pdf_content)
-            generated_plan.save()
-            
-            logger.info(f"Trip plan generated successfully for request {trip_request_id}")
+            # Only generate PDF if it doesn't exist or needs updating
+            if created or not generated_plan.pdf_file:
+                logger.info(f"Generating PDF for trip request {trip_request_id}")
+                pdf_content = generate_trip_plan_pdf(trip_plan_text, trip_request.destination)
+                
+                # Clean filename to prevent multiple versions
+                pdf_filename = f"trip_plan_{trip_request.id}.pdf"
+                
+                # Delete old PDF file if it exists
+                if generated_plan.pdf_file:
+                    try:
+                        if os.path.exists(generated_plan.pdf_file.path):
+                            os.remove(generated_plan.pdf_file.path)
+                            logger.info(f"Deleted old PDF file for trip {trip_request.id}")
+                    except Exception as cleanup_error:
+                        logger.warning(f"Could not delete old PDF: {cleanup_error}")
+                
+                # Save new content and PDF
+                generated_plan.content = trip_plan_text
+                generated_plan.pdf_file.save(pdf_filename, pdf_content, save=False)
+                generated_plan.save()
+                
+                logger.info(f"✅ Trip plan and PDF generated successfully for request {trip_request_id}")
+                logger.info(f"PDF size: {generated_plan.pdf_file.size} bytes")
+            else:
+                # Just update content if PDF already exists
+                generated_plan.content = trip_plan_text
+                generated_plan.save()
+                logger.info(f"Updated content for existing plan {trip_request_id}")
             
         except Exception as pdf_error:
             logger.error(f"Error generating PDF for request {trip_request_id}: {pdf_error}")
             # Save just the text content without PDF
-            generated_plan, created = GeneratedPlan.objects.get_or_create(trip_request=trip_request)
-            generated_plan.content = trip_plan_text
-            generated_plan.save()
+            generated_plan, created = GeneratedPlan.objects.get_or_create(
+                trip_request=trip_request,
+                defaults={'content': trip_plan_text}
+            )
+            if not created:
+                generated_plan.content = trip_plan_text
+                generated_plan.save()
         
     except TripPlanRequest.DoesNotExist:
         logger.error(f"Trip request {trip_request_id} not found")
@@ -398,17 +429,25 @@ class TripStatusAPIView(View):
             # Check if the trip plan is already generated
             try:
                 generated_plan = trip_request.generated_plan
-                if generated_plan.content and generated_plan.pdf_file:
+                # Check if we have content (PDF is optional for display)
+                if generated_plan.content and len(generated_plan.content.strip()) > 50:
                     return JsonResponse({'status': 'completed'})
                 else:
-                    return JsonResponse({'status': 'processing'})
+                    # Plan exists but incomplete - start regeneration
+                    logger.info(f"Incomplete plan found for trip {trip_id}, starting regeneration")
+                    thread = Thread(target=generate_trip_plan_background, 
+                                  args=(trip_id, request.user.id))
+                    thread.daemon = True
+                    thread.start()
+                    return JsonResponse({'status': 'generating'})
             except GeneratedPlan.DoesNotExist:
-                # Start background generation if not already started
+                # No plan exists - start background generation
+                logger.info(f"No plan found for trip {trip_id}, starting generation")
                 thread = Thread(target=generate_trip_plan_background, 
                               args=(trip_id, request.user.id))
                 thread.daemon = True
                 thread.start()
-                return JsonResponse({'status': 'processing'})
+                return JsonResponse({'status': 'generating'})
                 
         except TripPlanRequest.DoesNotExist:
             return JsonResponse({'status': 'error', 'message': 'Trip request not found'})
@@ -483,4 +522,68 @@ class LocationPhotosAPIView(View):
                 'error': 'Failed to fetch location photos',
                 'location': location_name,
                 'photos': []
+            }, status=500)
+
+class GeneratePDFAPIView(LoginRequiredMixin, View):
+    """API endpoint for manually generating PDF files"""
+    
+    def post(self, request, trip_id):
+        try:
+            trip_request = get_object_or_404(TripPlanRequest, pk=trip_id, user=request.user)
+            
+            # Get the generated plan
+            try:
+                generated_plan = trip_request.generated_plan
+                if not generated_plan.content:
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'No trip plan content found to generate PDF'
+                    })
+            except GeneratedPlan.DoesNotExist:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'No trip plan found. Please generate a trip plan first.'
+                })
+            
+            try:
+                # Generate PDF
+                logger.info(f"Manually generating PDF for trip request {trip_id}")
+                pdf_content = generate_trip_plan_pdf(generated_plan.content, trip_request.destination)
+                
+                # Save PDF file
+                pdf_filename = f"trip_plan_{trip_request.id}.pdf"
+                
+                # Delete old PDF file if it exists
+                if generated_plan.pdf_file:
+                    try:
+                        if os.path.exists(generated_plan.pdf_file.path):
+                            os.remove(generated_plan.pdf_file.path)
+                            logger.info(f"Deleted old PDF file for trip {trip_id}")
+                    except Exception as cleanup_error:
+                        logger.warning(f"Could not delete old PDF: {cleanup_error}")
+                
+                # Save new PDF file
+                generated_plan.pdf_file.save(pdf_filename, pdf_content, save=True)
+                
+                logger.info(f"✅ PDF generated successfully for trip request {trip_id}")
+                logger.info(f"PDF size: {generated_plan.pdf_file.size} bytes")
+                
+                return JsonResponse({
+                    'success': True,
+                    'pdf_url': generated_plan.pdf_file.url,
+                    'message': 'PDF generated successfully'
+                })
+                
+            except Exception as pdf_error:
+                logger.error(f"Error generating PDF for trip {trip_id}: {pdf_error}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Error generating PDF: {str(pdf_error)}'
+                })
+                
+        except Exception as e:
+            logger.error(f"Error in GeneratePDFAPIView for trip {trip_id}: {e}")
+            return JsonResponse({
+                'success': False,
+                'error': 'Internal server error'
             }, status=500)
