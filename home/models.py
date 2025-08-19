@@ -176,3 +176,8 @@ class ChatMessage(models.Model):
     
     def __str__(self):
         return f"{self.sender}: {self.content[:50]}..." if self.content else f"{self.sender}: {self.message_type} message"
+
+
+
+
+
