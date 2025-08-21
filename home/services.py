@@ -183,13 +183,27 @@ class GoogleMapsService:
 gmaps_service = GoogleMapsService()
 
 class AIService:
-    """Service class for handling OpenAI GPT-4 interactions"""
+    """Service class for handling OpenAI GPT interactions"""
     
     def __init__(self):
         self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
         self.model = settings.OPENAI_MODEL
         self.max_tokens = settings.MAX_TOKENS
         self.temperature = settings.TEMPERATURE
+    
+    def _chat_params(self):
+        """Return model-specific chat parameters for OpenAI API."""
+        params = {}
+        model = str(self.model or "")
+        if model.startswith("gpt-5"):
+            # gpt-5 uses max_completion_tokens and default temperature only
+            params["max_completion_tokens"] = self.max_tokens
+            # Do not set temperature explicitly (only default=1 supported)
+        else:
+            # gpt-4 family and others
+            params["max_tokens"] = self.max_tokens
+            params["temperature"] = self.temperature
+        return params
     
     def get_travel_assistant_prompt(self):
         """Get the system prompt for the travel assistant"""
@@ -297,12 +311,11 @@ Please provide a rich, detailed itinerary that makes full use of the budget and 
                 response = self.client.chat.completions.create(
                     model=self.model,
                     messages=messages,
-                    max_tokens=self.max_tokens,
-                    temperature=self.temperature,
                     top_p=1,
                     frequency_penalty=0,
                     presence_penalty=0,
-                    timeout=120  # 120 second timeout for longer requests
+                    timeout=120,
+                    **self._chat_params()
                 )
                 return response.choices[0].message.content.strip()
             except Exception as e:
@@ -441,12 +454,11 @@ Format the response as a comprehensive, enhanced travel itinerary with:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
-                max_tokens=self.max_tokens,
-                temperature=self.temperature,
                 top_p=1,
                 frequency_penalty=0,
                 presence_penalty=0,
-                timeout=120  # 120 second timeout for longer requests
+                timeout=120,
+                **self._chat_params()
             )
             
             return response.choices[0].message.content.strip()
@@ -530,11 +542,10 @@ Format the response as a comprehensive, enhanced travel itinerary with:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
-                max_tokens=self.max_tokens,
-                temperature=self.temperature,
                 top_p=1,
                 frequency_penalty=0,
-                presence_penalty=0
+                presence_penalty=0,
+                **self._chat_params()
             )
             
             return response.choices[0].message.content.strip()

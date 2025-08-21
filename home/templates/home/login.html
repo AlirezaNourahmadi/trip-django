@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 
 {% block extra_css %}
+<script>
+// Redirect to enhanced login page
+window.location.href = '{% url "account_login" %}';
+</script>
 <style>
     .auth-container {
         min-height: 80vh;
@@ -154,7 +158,7 @@
                     
                     <div class="auth-links">
                         <p class="mb-2">Don't have an account?</p>
-                        <a href="{% url 'register' %}" class="fw-bold">Create an account</a>
+                        <a href="{% url 'account_signup' %}" class="fw-bold">Create an account</a>
                         <br><br>
                         <a href="{% url 'home' %}" class="text-muted">← Back to Home</a>
                     </div>

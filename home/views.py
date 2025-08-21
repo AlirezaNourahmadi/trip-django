@@ -125,29 +125,24 @@ class ChatbotView(View):
         else:
             return ChatMessage.objects.filter(session_id=session_id).order_by('timestamp')
 
-class CustomLoginView(LoginView):
-    template_name = 'home/login.html'
-    redirect_authenticated_user = True
-    success_url = reverse_lazy('home')
+class CustomLoginView(View):
+    """Redirect to enhanced allauth login page"""
+    def get(self, request):
+        return HttpResponseRedirect(reverse_lazy('account_login'))
+    
+    def post(self, request):
+        return HttpResponseRedirect(reverse_lazy('account_login'))
 
 class CustomLogoutView(LogoutView):
     next_page = reverse_lazy('home')
 
 class RegisterView(View):
+    """Redirect to enhanced allauth signup page"""
     def get(self, request):
-        if request.user.is_authenticated:
-            return HttpResponseRedirect(reverse('home'))
-        form = CustomUserCreationForm()
-        return render(request, 'home/register.html', {'form': form})
+        return HttpResponseRedirect(reverse_lazy('account_signup'))
     
     def post(self, request):
-        form = CustomUserCreationForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            login(request, user)
-            messages.success(request, 'Account created successfully!')
-            return HttpResponseRedirect(reverse('home'))
-        return render(request, 'home/register.html', {'form': form})
+        return HttpResponseRedirect(reverse_lazy('account_signup'))
 
 class ProfileView(LoginRequiredMixin, View):
     def get(self, request):
@@ -334,256 +329,94 @@ class ChatbotWithContextView(LoginRequiredMixin, View):
         return context
 
 def generate_trip_plan_background(trip_request_id, user_id):
-    """Optimized background function - single OpenAI call, single PDF generation"""
+    """Cost-optimized background function using new optimized services"""
     try:
-        trip_request = TripPlanRequest.objects.get(id=trip_request_id)
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
-        user = User.objects.get(id=user_id)
+        # Import cost-optimized function
+        from .optimized_services import cost_optimized_trip_generation
+        cost_optimized_trip_generation(trip_request_id, user_id)
         
-        # Check if plan already exists to prevent duplicates
-        try:
-            existing_plan = trip_request.generated_plan
-            if existing_plan.content and len(existing_plan.content.strip()) > 50:
-                logger.info(f"Trip plan already exists for request {trip_request_id}, skipping generation")
-                return
-            else:
-                logger.info(f"Existing plan found but incomplete for request {trip_request_id}, regenerating")
-        except GeneratedPlan.DoesNotExist:
-            logger.info(f"No existing plan for request {trip_request_id}, starting generation")
-        
-        try:
-            # SINGLE OPTIMIZED API CALL - generate complete enhanced plan
-            logger.info(f"Starting optimized trip generation for request {trip_request_id}")
-            trip_plan_text = ai_service.generate_optimized_trip_plan(trip_request, user)
-            logger.info(f"Generated {len(trip_plan_text)} characters of trip content")
-            
-        except Exception as e:
-            error_msg = str(e)
-            logger.error(f"Error generating optimized trip plan: {error_msg}")
-            
-            # Create an enhanced fallback trip plan
-            from .services import generate_enhanced_fallback_plan
-            trip_plan_text = generate_enhanced_fallback_plan(trip_request)
-        
-        try:
-            # Create or update the GeneratedPlan (prevent duplicates)
-            generated_plan, created = GeneratedPlan.objects.get_or_create(
-                trip_request=trip_request,
-                defaults={'content': trip_plan_text}
-            )
-            
-            # Only generate PDF if it doesn't exist or needs updating
-            if created or not generated_plan.pdf_file:
-                logger.info(f"Generating PDF for trip request {trip_request_id}")
-                pdf_content = generate_trip_plan_pdf(trip_plan_text, trip_request.destination)
-                
-                # Clean filename to prevent multiple versions
-                pdf_filename = f"trip_plan_{trip_request.id}.pdf"
-                
-                # Delete old PDF file if it exists
-                if generated_plan.pdf_file:
-                    try:
-                        if os.path.exists(generated_plan.pdf_file.path):
-                            os.remove(generated_plan.pdf_file.path)
-                            logger.info(f"Deleted old PDF file for trip {trip_request.id}")
-                    except Exception as cleanup_error:
-                        logger.warning(f"Could not delete old PDF: {cleanup_error}")
-                
-                # Save new content and PDF
-                generated_plan.content = trip_plan_text
-                generated_plan.pdf_file.save(pdf_filename, pdf_content, save=False)
-                generated_plan.save()
-                
-                logger.info(f"✅ Trip plan and PDF generated successfully for request {trip_request_id}")
-                logger.info(f"PDF size: {generated_plan.pdf_file.size} bytes")
-            else:
-                # Just update content if PDF already exists
-                generated_plan.content = trip_plan_text
-                generated_plan.save()
-                logger.info(f"Updated content for existing plan {trip_request_id}")
-            
-        except Exception as pdf_error:
-            logger.error(f"Error generating PDF for request {trip_request_id}: {pdf_error}")
-            # Save just the text content without PDF
-            generated_plan, created = GeneratedPlan.objects.get_or_create(
-                trip_request=trip_request,
-                defaults={'content': trip_plan_text}
-            )
-            if not created:
-                generated_plan.content = trip_plan_text
-                generated_plan.save()
-        
-    except TripPlanRequest.DoesNotExist:
-        logger.error(f"Trip request {trip_request_id} not found")
     except Exception as e:
-        logger.error(f"Unexpected error in generate_trip_plan_background for request {trip_request_id}: {e}")
-
-class TripStatusAPIView(View):
-    """API endpoint to check trip generation status"""
-    
-    def get(self, request, trip_id):
+        logger.error(f"Error in optimized trip generation: {e}")
+        # Fallback to template-based generation
         try:
-            trip_request = TripPlanRequest.objects.get(id=trip_id)
+            from .models import TripPlanRequest, GeneratedPlan
+            from .optimized_services import generate_template_fallback, generate_clean_pdf
             
-            # Check if the trip plan is already generated
-            try:
-                generated_plan = trip_request.generated_plan
-                # Check if we have content (PDF is optional for display)
-                if generated_plan.content and len(generated_plan.content.strip()) > 50:
-                    return JsonResponse({'status': 'completed'})
-                else:
-                    # Plan exists but incomplete - start regeneration
-                    logger.info(f"Incomplete plan found for trip {trip_id}, starting regeneration")
-                    thread = Thread(target=generate_trip_plan_background, 
-                                  args=(trip_id, request.user.id))
-                    thread.daemon = True
-                    thread.start()
-                    return JsonResponse({'status': 'generating'})
-            except GeneratedPlan.DoesNotExist:
-                # No plan exists - start background generation
-                logger.info(f"No plan found for trip {trip_id}, starting generation")
-                thread = Thread(target=generate_trip_plan_background, 
-                              args=(trip_id, request.user.id))
-                thread.daemon = True
-                thread.start()
-                return JsonResponse({'status': 'generating'})
-                
-        except TripPlanRequest.DoesNotExist:
-            return JsonResponse({'status': 'error', 'message': 'Trip request not found'})
-        except Exception as e:
-            logger.error(f"Error checking trip status: {e}")
-            return JsonResponse({'status': 'error', 'message': 'Internal server error'})
+            trip_request = TripPlanRequest.objects.get(id=trip_request_id)
+            fallback_content = generate_template_fallback(trip_request)
+            
+            plan, created = GeneratedPlan.objects.get_or_create(
+                trip_request=trip_request,
+                defaults={'content': fallback_content}
+            )
+            
+            plan.content = fallback_content
+            pdf_content = generate_clean_pdf(fallback_content, trip_request.destination)
+            plan.pdf_file.save(f"trip_plan_{trip_request_id}.pdf", pdf_content)
+            plan.save()
+            
+            logger.info(f"✅ Fallback plan generated for {trip_request_id}")
+            
+        except Exception as fallback_error:
+            logger.error(f"Even fallback generation failed: {fallback_error}")
 
-class PlacesAutocompleteAPIView(View):
-    """API endpoint for Google Places autocomplete"""
+
+class CostDashboardView(LoginRequiredMixin, View):
+    """Dashboard for monitoring API costs (admin users only)"""
     
     def get(self, request):
-        query = request.GET.get('query', '').strip()
-        if not query or len(query) < 2:
-            return JsonResponse({'suggestions': []})
+        # Only allow superusers to view cost dashboard
+        if not request.user.is_superuser:
+            messages.error(request, "Access denied. Admin privileges required.")
+            return HttpResponseRedirect(reverse('home'))
         
         try:
-            from .services import gmaps_service
+            from .cost_monitor import cost_monitor
             
-            # Use Google Places API for autocomplete
-            suggestions = gmaps_service.get_place_suggestions(query)
+            # Get usage statistics
+            raw_usage = cost_monitor.get_daily_usage()
+            raw_recommendations = cost_monitor.get_cost_recommendation()
+            hourly_usage = cost_monitor.get_hourly_usage()
             
-            return JsonResponse({
-                'suggestions': suggestions
+            # Format usage data for template
+            usage = {
+                'openai': raw_usage.get('openai', {'calls': 0, 'cost': 0.0, 'limit': 100}),
+                'google_maps': raw_usage.get('google_maps', {'calls': 0, 'cost': 0.0, 'limit': 100}),
+                'google_places': raw_usage.get('google_places', {'calls': 0, 'cost': 0.0, 'limit': 100}),
+                'total_cost': raw_usage.get('total_cost', 0.0),
+                'daily_limit': 5.00,  # $5 daily budget
+                'cache_hit_rate': raw_usage.get('cache_stats', {}).get('hit_rate', 0.0),
+                'hourly_data': hourly_usage
+            }
+            
+            # Format recommendations for template
+            total_cost = usage['total_cost']
+            if total_cost > 3.0:
+                level = 'critical'
+                message = 'Critical: Daily budget almost exceeded!'
+            elif total_cost > 2.0:
+                level = 'high' 
+                message = 'High usage detected - consider optimization'
+            elif total_cost > 1.0:
+                level = 'medium'
+                message = 'Moderate usage - monitoring recommended'
+            else:
+                level = 'low'
+                message = 'Usage is within optimal range'
+            
+            recommendations = {
+                'level': level,
+                'message': message,
+                'suggestions': raw_recommendations
+            }
+            
+            return render(request, 'home/cost_dashboard.html', {
+                'usage': usage,
+                'recommendations': recommendations,
+                'hourly_data_json': json.dumps(hourly_usage)  # Serialize for JavaScript
             })
             
         except Exception as e:
-            logger.error(f"Error getting place suggestions: {e}")
-            return JsonResponse({
-                'suggestions': [],
-                'error': 'Failed to fetch suggestions'
-            })
-
-class LocationPhotosAPIView(View):
-    """API endpoint for fetching location photos from Google Places"""
-    
-    def get(self, request):
-        location_name = request.GET.get('location', '').strip()
-        destination_city = request.GET.get('destination', '').strip()
-        
-        if not location_name:
-            return JsonResponse({'error': 'Location name is required'}, status=400)
-        
-        try:
-            from .services import gmaps_service
-            
-            # Get place details including photos
-            place_details = gmaps_service.get_place_details(location_name, destination_city)
-            
-            if not place_details:
-                return JsonResponse({
-                    'location': location_name,
-                    'photos': [],
-                    'rating': None,
-                    'formatted_address': None,
-                    'message': 'Location not found'
-                })
-            
-            return JsonResponse({
-                'location': location_name,
-                'place_id': place_details.get('place_id'),
-                'name': place_details.get('name'),
-                'photos': place_details.get('photos', []),
-                'rating': place_details.get('rating'),
-                'formatted_address': place_details.get('formatted_address'),
-                'types': place_details.get('types', []),
-                'maps_link': f"https://maps.google.com/?q=place_id:{place_details.get('place_id')}" if place_details.get('place_id') else None
-            })
-            
-        except Exception as e:
-            logger.error(f"Error getting location photos for {location_name}: {e}")
-            return JsonResponse({
-                'error': 'Failed to fetch location photos',
-                'location': location_name,
-                'photos': []
-            }, status=500)
-
-class GeneratePDFAPIView(LoginRequiredMixin, View):
-    """API endpoint for manually generating PDF files"""
-    
-    def post(self, request, trip_id):
-        try:
-            trip_request = get_object_or_404(TripPlanRequest, pk=trip_id, user=request.user)
-            
-            # Get the generated plan
-            try:
-                generated_plan = trip_request.generated_plan
-                if not generated_plan.content:
-                    return JsonResponse({
-                        'success': False,
-                        'error': 'No trip plan content found to generate PDF'
-                    })
-            except GeneratedPlan.DoesNotExist:
-                return JsonResponse({
-                    'success': False,
-                    'error': 'No trip plan found. Please generate a trip plan first.'
-                })
-            
-            try:
-                # Generate PDF
-                logger.info(f"Manually generating PDF for trip request {trip_id}")
-                pdf_content = generate_trip_plan_pdf(generated_plan.content, trip_request.destination)
-                
-                # Save PDF file
-                pdf_filename = f"trip_plan_{trip_request.id}.pdf"
-                
-                # Delete old PDF file if it exists
-                if generated_plan.pdf_file:
-                    try:
-                        if os.path.exists(generated_plan.pdf_file.path):
-                            os.remove(generated_plan.pdf_file.path)
-                            logger.info(f"Deleted old PDF file for trip {trip_id}")
-                    except Exception as cleanup_error:
-                        logger.warning(f"Could not delete old PDF: {cleanup_error}")
-                
-                # Save new PDF file
-                generated_plan.pdf_file.save(pdf_filename, pdf_content, save=True)
-                
-                logger.info(f"✅ PDF generated successfully for trip request {trip_id}")
-                logger.info(f"PDF size: {generated_plan.pdf_file.size} bytes")
-                
-                return JsonResponse({
-                    'success': True,
-                    'pdf_url': generated_plan.pdf_file.url,
-                    'message': 'PDF generated successfully'
-                })
-                
-            except Exception as pdf_error:
-                logger.error(f"Error generating PDF for trip {trip_id}: {pdf_error}")
-                return JsonResponse({
-                    'success': False,
-                    'error': f'Error generating PDF: {str(pdf_error)}'
-                })
-                
-        except Exception as e:
-            logger.error(f"Error in GeneratePDFAPIView for trip {trip_id}: {e}")
-            return JsonResponse({
-                'success': False,
-                'error': 'Internal server error'
-            }, status=500)
+            logger.error(f"Error loading cost dashboard: {e}")
+            messages.error(request, f"Error loading cost dashboard: {str(e)}")
+            return HttpResponseRedirect(reverse('home'))

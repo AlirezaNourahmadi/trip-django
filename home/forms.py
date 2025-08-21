@@ -2,6 +2,7 @@ from django import forms
 from .models import TripPlanRequest
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 
 User = get_user_model()
 
@@ -10,6 +11,17 @@ class TripPlanRequestForm(forms.ModelForm):
     destination_country = forms.CharField(widget=forms.HiddenInput(), required=False)
     destination_place_id = forms.CharField(widget=forms.HiddenInput(), required=False)
     
+    def clean_budget(self):
+        budget = self.cleaned_data.get('budget')
+        if budget is None:
+            return budget
+        try:
+            if budget < 0:
+                raise ValidationError("Budget cannot be negative.")
+        except TypeError:
+            raise ValidationError("Invalid budget value.")
+        return budget
+    
     class Meta:
         model = TripPlanRequest
         fields = ['destination', 'destination_country', 'destination_place_id', 'duration', 'budget', 'number_of_travelers', 'interests', 'daily_budget', 'transportation_preferences', 'experience_style', 'uploaded_file']
@@ -17,16 +29,16 @@ class TripPlanRequestForm(forms.ModelForm):
             'destination': forms.TextInput(attrs={
                 'class': 'form-control',
                 'id': 'destination-input',
-                'placeholder': 'Start typing a destination...',
+                'placeholder': 'e.g., Paris, France',
                 'autocomplete': 'off'
             }),
-            'duration': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
-            'budget': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-            'number_of_travelers': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
-            'interests': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'daily_budget': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-            'transportation_preferences': forms.TextInput(attrs={'class': 'form-control'}),
-            'experience_style': forms.TextInput(attrs={'class': 'form-control'}),
+            'duration': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'placeholder': 'e.g., 7'}),
+'budget': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., 3,000', 'data-currency': 'USD', 'required': True, 'inputmode': 'decimal'}),
+            'number_of_travelers': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'placeholder': 'e.g., 2'}),
+            'interests': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'e.g., History, Art, Food, Hiking'}),
+'daily_budget': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Auto-calculated', 'readonly': True}),
+            'transportation_preferences': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., Public transit, Walking, Ride-sharing'}),
+            'experience_style': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., Relaxing, Adventurous, Family-friendly, Luxury'}),
             'uploaded_file': forms.FileInput(attrs={'class': 'form-control'}),
         }
 

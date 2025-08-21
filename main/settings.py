@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "django.contrib.sites",  # Required for allauth
     
     # Third party apps
+    "rest_framework",
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
@@ -150,9 +151,10 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # OpenAI Configuration
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4-turbo-preview')
+OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-5')
 MAX_TOKENS = int(os.getenv('MAX_TOKENS', '4000'))
-TEMPERATURE = float(os.getenv('TEMPERATURE', '0.7'))
+# For gpt-5, temperature must be default (1). Keep env override for gpt-4 family.
+TEMPERATURE = float(os.getenv('TEMPERATURE', '1'))
 
 # Google Maps API Configuration
 GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY')
@@ -210,3 +212,40 @@ ACCOUNT_LOGOUT_REDIRECT_URL = '/'
 
 # Custom Adapters
 SOCIALACCOUNT_ADAPTER = 'home.adapters.CustomSocialAccountAdapter'
+
+# Caching Configuration
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+        'TIMEOUT': 86400,  # 24 hours
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000,
+        }
+    }
+}
+
+# Django REST Framework Configuration
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+    ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',
+        'user': '200/hour'
+    },
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20
+}
+
+# Cost Optimization Settings
+COST_OPTIMIZATION_ENABLED = True
+USE_TEMPLATE_FALLBACK = True  # Use template-based plans when API costs are high
+MAX_DAILY_API_CALLS = 100  # Limit API calls per day

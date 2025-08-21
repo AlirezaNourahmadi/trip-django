@@ -4,14 +4,14 @@
 
 [![Django](https://img.shields.io/badge/Django-5.1.6-green.svg)](https://www.djangoproject.com/)
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
-[![OpenAI GPT-4](https://img.shields.io/badge/OpenAI-GPT--4-orange.svg)](https://openai.com)
+[![OpenAI GPT-5](https://img.shields.io/badge/OpenAI-GPT--5-orange.svg)](https://openai.com)
 [![Google Maps](https://img.shields.io/badge/Google-Maps%20API-red.svg)](https://developers.google.com/maps)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## ✨ Key Features
 
 ### 🤖 **Advanced AI Travel Assistant**
-- **GPT-4 Turbo Integration**: Latest OpenAI model for intelligent travel recommendations
+- **GPT-5 Integration**: Latest OpenAI model for intelligent travel recommendations
 - **Multi-Modal Communication**: Text, voice, file uploads, and image analysis
 - **Contextual Conversations**: Maintains chat history for personalized responses
 - **Real-Time Processing**: Instant responses with typing indicators
@@ -152,12 +152,12 @@ For voice features to work, you'll need to grant microphone permissions when pro
 - **Documents**: .pdf, .doc, .docx, .txt, .csv, .xlsx
 - **Audio**: .mp3, .wav, .ogg, .m4a
 
-## GPT-4 Integration ✅
+## GPT-5 Integration ✅
 
-The chatbot is now fully integrated with **OpenAI GPT-4 Turbo** for intelligent travel assistance!
+The chatbot is now fully integrated with **OpenAI GPT-5** for intelligent travel assistance!
 
 ### Features:
-- **GPT-4 Turbo**: Latest OpenAI model for superior responses
+- **GPT-5**: Latest OpenAI model for superior responses
 - **Vision Support**: Can analyze uploaded images and identify locations
 - **Context Awareness**: Maintains conversation history for better responses
 - **Specialized Prompts**: Optimized for travel planning and recommendations
@@ -169,6 +169,11 @@ The AI service is configured in `home/services.py` with:
 - Image analysis capabilities
 - Chat history context
 - Error handling and fallbacks
+
+Environment variables (see .env.example):
+- OPENAI_MODEL (default: gpt-5)
+- TEMPERATURE (default: 1 for gpt-5; only used for gpt-4 family)
+- MAX_TOKENS (mapped to max_completion_tokens for gpt-5)
 
 ### API Usage:
 The system uses environment variables for secure API key management. All OpenAI interactions are handled through the `AIService` class.

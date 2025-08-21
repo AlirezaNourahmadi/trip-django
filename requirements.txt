@@ -44,6 +44,11 @@ django-csp==3.7
 # OAuth Authentication
 django-allauth==0.57.0
 
+# API Framework and Caching
+djangorestframework==3.14.0
+django-redis==5.4.0
+redis==5.0.1
+
 # Date/Time Utilities
 pytz==2023.3.post1
 

@@ -149,16 +149,21 @@
             left: 0;
         }
 
-        /* === MODERN CARDS === */
+        /* === PERFORMANCE-OPTIMIZED MODERN CARDS === */
         .modern-card {
             background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
+            /* Reduced backdrop-filter blur for performance */
+            backdrop-filter: blur(8px);
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: var(--border-radius);
             box-shadow: var(--card-shadow);
-            transition: var(--transition);
+            /* Faster, simpler transition */
+            transition: transform 0.2s ease;
             overflow: hidden;
             position: relative;
+            /* Force hardware acceleration */
+            will-change: transform;
+            transform: translateZ(0);
         }
 
         .modern-card::before {
@@ -169,18 +174,29 @@
             right: 0;
             height: 4px;
             background: var(--primary-gradient);
-            transform: scaleX(0);
-            transition: var(--transition);
+            transform: scaleX(0) translateZ(0);
+            transition: transform 0.2s ease;
             transform-origin: left;
         }
 
         .modern-card:hover {
-            transform: translateY(-8px);
-            box-shadow: var(--card-shadow-hover);
+            /* Reduced transform distance for performance */
+            transform: translateY(-4px) translateZ(0);
         }
 
         .modern-card:hover::before {
-            transform: scaleX(1);
+            transform: scaleX(1) translateZ(0);
+        }
+        
+        /* Disable hover effects on mobile for performance */
+        @media (max-width: 768px) {
+            .modern-card:hover {
+                transform: translateZ(0);
+            }
+            .modern-card {
+                backdrop-filter: none;
+                background: rgba(255, 255, 255, 0.98);
+            }
         }
 
         /* === HERO SECTION === */
@@ -286,21 +302,26 @@
             transform: translateY(-3px);
         }
 
-        /* === FEATURE CARDS === */
+        /* === PERFORMANCE-OPTIMIZED FEATURE CARDS === */
         .feature-card {
             border: none;
             background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
+            /* Reduced backdrop-filter for performance */
+            backdrop-filter: blur(8px);
             border-radius: var(--border-radius);
             box-shadow: var(--card-shadow);
-            transition: var(--transition);
+            /* Faster transition */
+            transition: transform 0.2s ease;
             overflow: hidden;
             height: 100%;
+            /* Force hardware acceleration */
+            will-change: transform;
+            transform: translateZ(0);
         }
 
         .feature-card:hover {
-            transform: translateY(-10px) scale(1.02);
-            box-shadow: var(--card-shadow-hover);
+            /* Reduced transform for performance */
+            transform: translateY(-4px) translateZ(0);
         }
 
         .feature-card .card-body {
@@ -318,11 +339,29 @@
             justify-content: center;
             color: white;
             font-size: 2rem;
-            transition: var(--transition);
+            /* Faster transition */
+            transition: transform 0.2s ease;
+            will-change: transform;
+            transform: translateZ(0);
         }
 
         .feature-card:hover .feature-icon {
-            transform: scale(1.1) rotate(5deg);
+            /* Simplified transform */
+            transform: scale(1.05) translateZ(0);
+        }
+        
+        /* Disable hover effects on mobile */
+        @media (max-width: 768px) {
+            .feature-card:hover {
+                transform: translateZ(0);
+            }
+            .feature-card:hover .feature-icon {
+                transform: translateZ(0);
+            }
+            .feature-card {
+                backdrop-filter: none;
+                background: rgba(255, 255, 255, 0.98);
+            }
         }
 
         /* === CHAT STYLES === */
@@ -504,6 +543,11 @@
                             </a>
                             <ul class="dropdown-menu">
                                 <li><a class="dropdown-item" href="{% url 'profile' %}">Profile</a></li>
+                                {% if user.is_superuser %}
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="{% url 'cost_dashboard' %}"><i class="fas fa-chart-line me-2"></i>Cost Dashboard</a></li>
+                                    <li><a class="dropdown-item" href="/admin/"><i class="fas fa-cog me-2"></i>Admin Panel</a></li>
+                                {% endif %}
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{% url 'account_logout' %}">Logout</a></li>
                             </ul>

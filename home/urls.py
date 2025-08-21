@@ -3,7 +3,11 @@ from . import views
 from .views import (
     HomeView, TripRequestCreateView, TripRequestDetailView, TripRequestUpdateView,
     ChatbotView, ChatbotWithContextView, CustomLoginView, CustomLogoutView, RegisterView, ProfileView,
-    TripStatusAPIView, PlacesAutocompleteAPIView, LocationPhotosAPIView, GeneratePDFAPIView
+    CostDashboardView
+)
+from .api_views import (
+    TripStatusAPIView, PlacesAutocompleteAPIView, LocationPhotosAPIView, 
+    GeneratePDFAPIView, CostDashboardAPIView
 )
 
 urlpatterns = [

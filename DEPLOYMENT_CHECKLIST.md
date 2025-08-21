@@ -1,12 +1,12 @@
 # 🚀 Trip-Django Deployment Checklist
 
-## ✅ GPT-4 Integration Complete!
+## ✅ GPT-5 Integration Complete!
 
-Your Django chatbot is now fully powered by **OpenAI GPT-4 Turbo** with advanced features!
+Your Django chatbot is now fully powered by **OpenAI GPT-5** with advanced features!
 
 ### 🎯 What's Working:
 
-1. **GPT-4 Turbo Integration**
+1. **GPT-5 Integration**
    - ✅ OpenAI API properly configured
    - ✅ Environment variables secured
    - ✅ Professional travel assistant prompts
@@ -65,9 +65,9 @@ python manage.py populate_destinations
 
 ## 📊 Performance Notes:
 
-- **Model**: GPT-4 Turbo (latest and fastest)
-- **Max Tokens**: 1000 (configurable)
-- **Temperature**: 0.7 (balanced creativity)
+- **Model**: GPT-5 (current default)
+- **Max completion tokens**: 1000 (configurable via MAX_TOKENS env)
+- **Temperature**: 1 (GPT-5 uses default temperature)
 - **Vision**: Enabled for image analysis
 - **Fallback**: Intelligent error handling
 
@@ -79,4 +79,4 @@ python manage.py populate_destinations
 
 ## 🎉 Ready to Use!
 
-Your Trip-Django application is now a fully functional AI-powered travel assistant using GPT-4 Turbo!
+Your Trip-Django application is now a fully functional AI-powered travel assistant using GPT-5!

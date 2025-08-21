@@ -213,17 +213,37 @@
             </div>
         </div>
         
-        <!-- Download PDF -->
+        <!-- Download PDF Section -->
         <div class="text-center mt-4">
-            {% if plan.pdf_file %}
-            <a href="{{ plan.pdf_file.url }}" class="btn btn-success btn-lg" target="_blank">
-                📄 Download PDF Itinerary
-            </a>
-            {% else %}
-            <button id="generatePdfBtn" class="btn btn-warning btn-lg" onclick="generatePDF()">
-                📄 Generate PDF Itinerary
-            </button>
-            {% endif %}
+            <div class="card border-0 shadow-sm" style="max-width: 400px; margin: 0 auto;">
+                <div class="card-body p-4">
+                    {% if plan.pdf_file %}
+                        <div class="mb-3">
+                            <div class="text-success mb-2">
+                                <i class="fas fa-check-circle fa-2x"></i>
+                            </div>
+                            <h5 class="text-success mb-3">📄 PDF Ready!</h5>
+                            <p class="text-muted mb-3">Your beautifully formatted trip itinerary is ready to download.</p>
+                        </div>
+                        <a href="{{ plan.pdf_file.url }}" class="btn btn-success btn-lg w-100 mb-2" target="_blank">
+                            <i class="fas fa-download me-2"></i>Download PDF Itinerary
+                        </a>
+                        <small class="text-muted">Clean formatting • Location links • Travel-friendly</small>
+                    {% else %}
+                        <div class="mb-3">
+                            <div class="text-info mb-2">
+                                <div class="spinner-border text-info" role="status" style="width: 3rem; height: 3rem;"></div>
+                            </div>
+                            <h5 class="text-info mb-3">🎨 Creating Your PDF</h5>
+                            <p class="text-muted mb-3">We're generating a beautiful, travel-friendly PDF with clean links and optimized formatting.</p>
+                        </div>
+                        <button class="btn btn-outline-primary btn-lg w-100 mb-2" onclick="checkPDFStatus()">
+                            <i class="fas fa-sync-alt me-2"></i>Check Status
+                        </button>
+                        <small class="text-muted">This usually takes 30-60 seconds</small>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
     {% else %}
@@ -374,44 +394,63 @@ async function loadPhotosForLocation(locationName, cardElement) {
     }
 }
 
-// PDF Generation function
-function generatePDF() {
-    const button = document.getElementById('generatePdfBtn');
-    const originalText = button.innerHTML;
+// PDF Status Checking function
+function checkPDFStatus() {
+    const checkButton = event.target;
+    const originalText = checkButton.innerHTML;
     
     // Show loading state
-    button.innerHTML = '⏳ Generating PDF...';
-    button.disabled = true;
+    checkButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Checking...';
+    checkButton.disabled = true;
     
-    // Make API call to generate PDF
-    fetch(`/api/generate-pdf/{{ trip_request.id }}/`, {
-        method: 'POST',
+    // Check if PDF is ready by making a simple GET request
+    fetch(`/trip_request/{{ trip_request.id }}/`, {
+        method: 'GET',
         headers: {
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value || '',
-            'Content-Type': 'application/json',
-        },
+            'Cache-Control': 'no-cache'
+        }
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Replace button with download link
-            button.outerHTML = `
-                <a href="${data.pdf_url}" class="btn btn-success btn-lg" target="_blank">
-                    📄 Download PDF Itinerary
-                </a>
-            `;
+    .then(response => {
+        if (response.ok) {
+            // Refresh the page to show updated PDF status
+            window.location.reload();
         } else {
-            alert('Error generating PDF: ' + (data.error || 'Unknown error'));
-            button.innerHTML = originalText;
-            button.disabled = false;
+            throw new Error('Failed to check status');
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        alert('Error generating PDF. Please try again.');
-        button.innerHTML = originalText;
-        button.disabled = false;
+        console.error('Error checking PDF status:', error);
+        checkButton.innerHTML = originalText;
+        checkButton.disabled = false;
+        
+        // Show a friendly message
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-warning mt-2';
+        alertDiv.innerHTML = 'PDF generation is still in progress. Please try again in a moment.';
+        checkButton.parentElement.appendChild(alertDiv);
+        
+        // Remove alert after 3 seconds
+        setTimeout(() => {
+            if (alertDiv.parentElement) {
+                alertDiv.parentElement.removeChild(alertDiv);
+            }
+        }, 3000);
     });
 }
+
+// Auto-refresh function for PDF generation status
+function autoCheckPDFStatus() {
+    // Only auto-check if PDF is not ready yet
+    {% if not plan.pdf_file %}
+    setTimeout(() => {
+        window.location.reload();
+    }, 45000); // Check again after 45 seconds
+    {% endif %}
+}
+
+// Start auto-checking when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    autoCheckPDFStatus();
+});
 </script>
 {% endblock %}

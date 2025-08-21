@@ -19,8 +19,11 @@ from django.contrib import admin
 from django.urls import path , include
 from django.conf import settings
 from django.conf.urls.static import static
+from home.views import CostDashboardView
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("accounts/", include("allauth.urls")),  # Django Allauth URLs
+    path("cost-dashboard/", CostDashboardView.as_view(), name="cost_dashboard"),  # Cost dashboard outside admin
     path("", include("home.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
