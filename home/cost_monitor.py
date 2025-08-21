@@ -131,8 +131,9 @@ class CostMonitor:
             recommendations.append("Use template-based responses for common queries")
         
         if usage.get('openai', {}).get('calls', 0) > 50:
-            recommendations.append("Switch to GPT-4o-mini for cost savings")
+            recommendations.append("Consider using GPT-4o-mini for cost savings")
             recommendations.append("Reduce token limits in prompts")
+            recommendations.append("Enable more aggressive caching for AI responses")
         
         if usage.get('google_maps', {}).get('calls', 0) > 50:
             recommendations.append("Implement more aggressive Google Maps caching")

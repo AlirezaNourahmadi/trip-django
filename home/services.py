@@ -192,18 +192,11 @@ class AIService:
         self.temperature = settings.TEMPERATURE
     
     def _chat_params(self):
-        """Return model-specific chat parameters for OpenAI API."""
-        params = {}
-        model = str(self.model or "")
-        if model.startswith("gpt-5"):
-            # gpt-5 uses max_completion_tokens and default temperature only
-            params["max_completion_tokens"] = self.max_tokens
-            # Do not set temperature explicitly (only default=1 supported)
-        else:
-            # gpt-4 family and others
-            params["max_tokens"] = self.max_tokens
-            params["temperature"] = self.temperature
-        return params
+        """Return chat parameters for OpenAI API."""
+        return {
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature
+        }
     
     def get_travel_assistant_prompt(self):
         """Get the system prompt for the travel assistant"""

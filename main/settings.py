@@ -151,10 +151,10 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # OpenAI Configuration
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-5')
+OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4-turbo')
 MAX_TOKENS = int(os.getenv('MAX_TOKENS', '4000'))
-# For gpt-5, temperature must be default (1). Keep env override for gpt-4 family.
-TEMPERATURE = float(os.getenv('TEMPERATURE', '1'))
+# Temperature: 0.7 for gpt-4 family, 1 for gpt-5
+TEMPERATURE = float(os.getenv('TEMPERATURE', '0.7'))
 
 # Google Maps API Configuration
 GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY')

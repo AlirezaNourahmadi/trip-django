@@ -176,9 +176,9 @@ class CostOptimizedAIService:
     
     def __init__(self):
         self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
-        self.model = "gpt-5"  # Upgraded model for better responses
-        self.max_tokens = 2500  # Reduced tokens
-        self.temperature = 1.0  # gpt-5 uses default temperature
+        self.model = "gpt-4-turbo"  # Stable model with good performance
+        self.max_tokens = 3000  # Good balance of detail and cost
+        self.temperature = 0.7  # Balanced creativity for travel planning
         self.cache_timeout = 86400 * 3  # Cache for 3 days
     
     def _get_cache_key(self, operation, *args):
@@ -248,7 +248,8 @@ Keep concise but informative."""
                     {"role": "system", "content": "You are a travel planning expert. Create detailed, budget-conscious itineraries."},
                     {"role": "user", "content": prompt}
                 ],
-                max_completion_tokens=self.max_tokens,
+                max_tokens=self.max_tokens,
+                temperature=self.temperature,
                 timeout=60
             )
             

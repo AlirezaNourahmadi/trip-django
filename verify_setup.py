@@ -45,11 +45,11 @@ def test_openai():
     try:
         from home.services import ai_service
         response = ai_service.generate_response("Hello, test message")
-        print("✅ OpenAI GPT-4: SUCCESS")
+        print("✅ OpenAI (chat completions): SUCCESS")
         print(f"   Sample response: {response[:60]}...")
         return True
     except Exception as e:
-        print(f"❌ OpenAI GPT-4: FAILED - {e}")
+        print(f"❌ OpenAI (chat completions): FAILED - {e}")
         return False
 
 def test_environment():
