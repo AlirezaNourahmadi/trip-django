@@ -8,7 +8,7 @@ psycopg2-binary==2.9.9
 Pillow==10.4.0
 
 # PDF Generation
-reportlab==3.6.12
+reportlab==4.0.7
 weasyprint==61.2
 
 # AI Integration
