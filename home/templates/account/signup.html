@@ -91,7 +91,7 @@
                                 {% endif %}
                                 
                                 <div class="form-floating mb-3">
-                                    {{ form.email }}
+                                    <input type="email" class="form-control" id="{{ form.email.id_for_label }}" name="{{ form.email.name }}" placeholder=" " required>
                                     <label for="{{ form.email.id_for_label }}"><i class="fas fa-envelope me-2"></i>Email Address</label>
                                     {% if form.email.errors %}
                                         <div class="text-danger small mt-2"><i class="fas fa-exclamation-circle me-1"></i>{{ form.email.errors }}</div>
@@ -99,7 +99,7 @@
                                 </div>
 
                                 <div class="form-floating mb-3">
-                                    {{ form.password1 }}
+                                    <input type="password" class="form-control" id="{{ form.password1.id_for_label }}" name="{{ form.password1.name }}" placeholder=" " required>
                                     <label for="{{ form.password1.id_for_label }}"><i class="fas fa-lock me-2"></i>Password</label>
                                     {% if form.password1.errors %}
                                         <div class="text-danger small mt-2"><i class="fas fa-exclamation-circle me-1"></i>{{ form.password1.errors }}</div>
@@ -107,7 +107,7 @@
                                 </div>
 
                                 <div class="form-floating mb-4">
-                                    {{ form.password2 }}
+                                    <input type="password" class="form-control" id="{{ form.password2.id_for_label }}" name="{{ form.password2.name }}" placeholder=" " required>
                                     <label for="{{ form.password2.id_for_label }}"><i class="fas fa-shield-alt me-2"></i>Confirm Password</label>
                                     {% if form.password2.errors %}
                                         <div class="text-danger small mt-2"><i class="fas fa-exclamation-circle me-1"></i>{{ form.password2.errors }}</div>
@@ -200,33 +200,55 @@
     margin-bottom: 1.5rem;
 }
 
-.form-control {
+.form-floating > .form-control {
     background: rgba(255, 255, 255, 0.9);
     border: 2px solid rgba(0, 0, 0, 0.1);
     border-radius: 15px;
-    padding: 15px 20px;
+    padding: 1rem 0.75rem;
     font-size: 1rem;
+    line-height: 1.25;
+    height: calc(3.5rem + 2px);
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    height: auto;
 }
 
-.form-control:focus {
+.form-floating > .form-control:focus {
     border-color: #667eea;
     box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.15);
     background: white;
     transform: translateY(-2px);
 }
 
-.form-control:not(:placeholder-shown) {
+.form-floating > .form-control:not(:placeholder-shown) {
     background: white;
     border-color: #667eea;
 }
 
-.form-label {
+.form-floating > .form-control:focus,
+.form-floating > .form-control:not(:placeholder-shown) {
+    padding-top: 1.625rem;
+    padding-bottom: 0.625rem;
+}
+
+.form-floating > label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    padding: 1rem 0.75rem;
+    pointer-events: none;
+    border: 1px solid transparent;
+    transform-origin: 0 0;
+    transition: opacity 0.1s ease-in-out, transform 0.1s ease-in-out;
     font-weight: 600;
-    color: #2c3e50;
-    margin-bottom: 8px;
-    transition: all 0.3s ease;
+    color: #6c757d;
+    font-size: 1rem;
+}
+
+.form-floating > .form-control:focus ~ label,
+.form-floating > .form-control:not(:placeholder-shown) ~ label {
+    opacity: 0.65;
+    transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);
+    color: #667eea;
 }
 
 .google-btn {

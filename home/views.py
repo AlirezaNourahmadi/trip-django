@@ -125,24 +125,6 @@ class ChatbotView(View):
         else:
             return ChatMessage.objects.filter(session_id=session_id).order_by('timestamp')
 
-class CustomLoginView(View):
-    """Redirect to enhanced allauth login page"""
-    def get(self, request):
-        return HttpResponseRedirect(reverse_lazy('account_login'))
-    
-    def post(self, request):
-        return HttpResponseRedirect(reverse_lazy('account_login'))
-
-class CustomLogoutView(LogoutView):
-    next_page = reverse_lazy('home')
-
-class RegisterView(View):
-    """Redirect to enhanced allauth signup page"""
-    def get(self, request):
-        return HttpResponseRedirect(reverse_lazy('account_signup'))
-    
-    def post(self, request):
-        return HttpResponseRedirect(reverse_lazy('account_signup'))
 
 class ProfileView(LoginRequiredMixin, View):
     def get(self, request):
