@@ -3,7 +3,7 @@ from . import views
 from .views import (
     HomeView, TripRequestCreateView, TripRequestDetailView, TripRequestUpdateView,
     ChatbotView, ChatbotWithContextView, ProfileView,
-    CostDashboardView
+    CostDashboardView, TermsOfServiceView, PrivacyPolicyView
 )
 from .api_views import (
     TripStatusAPIView, PlacesAutocompleteAPIView, LocationPhotosAPIView, 
@@ -22,4 +22,6 @@ urlpatterns = [
     path("api/places-autocomplete/", PlacesAutocompleteAPIView.as_view(), name="places_autocomplete"),
     path("api/location-photos/", LocationPhotosAPIView.as_view(), name="location_photos"),
     path("api/generate-pdf/<int:trip_id>/", GeneratePDFAPIView.as_view(), name="generate_pdf"),
+    path("terms-of-service/", TermsOfServiceView.as_view(), name="terms_of_service"),
+    path("privacy-policy/", PrivacyPolicyView.as_view(), name="privacy_policy"),
 ]

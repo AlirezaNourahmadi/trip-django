@@ -402,3 +402,17 @@ class CostDashboardView(LoginRequiredMixin, View):
             logger.error(f"Error loading cost dashboard: {e}")
             messages.error(request, f"Error loading cost dashboard: {str(e)}")
             return HttpResponseRedirect(reverse('home'))
+
+
+class TermsOfServiceView(View):
+    """Terms of Service page"""
+    
+    def get(self, request):
+        return render(request, 'legal/terms_of_service.html')
+
+
+class PrivacyPolicyView(View):
+    """Privacy Policy page"""
+    
+    def get(self, request):
+        return render(request, 'legal/privacy_policy.html')
