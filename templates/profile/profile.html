@@ -1,0 +1,508 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}{{ profile_user.get_display_name }}'s Profile - TripAI{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <div class="container mt-4">
+        <!-- Profile Header -->
+        <div class="row">
+            <div class="col-12">
+                <div class="profile-header-card">
+                    <div class="cover-section">
+                        <div class="gradient-overlay"></div>
+                    </div>
+                    
+                    <div class="profile-info-section">
+                        <div class="row align-items-end">
+                            <div class="col-md-8">
+                                <div class="profile-avatar-section">
+                                    <div class="profile-avatar">
+                                        <img src="{{ profile_user.get_profile_picture_url }}" 
+                                             alt="{{ profile_user.get_display_name }}'s profile picture"
+                                             class="profile-picture">
+                                        {% if profile_user.is_google_user %}
+                                            <div class="google-badge" title="Google Account">
+                                                <i class="fab fa-google"></i>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="profile-details">
+                                        <h1 class="profile-name">{{ profile_user.get_display_name }}</h1>
+                                        <p class="profile-username">@{{ profile_user.username }}</p>
+                                        
+                                        {% if profile_user.bio %}
+                                            <p class="profile-bio">{{ profile_user.bio }}</p>
+                                        {% endif %}
+                                        
+                                        <div class="profile-meta">
+                                            {% if profile_user.location %}
+                                                <span class="meta-item">
+                                                    <i class="fas fa-map-marker-alt"></i>
+                                                    {{ profile_user.location }}
+                                                </span>
+                                            {% endif %}
+                                            
+                                            {% if profile_user.website %}
+                                                <span class="meta-item">
+                                                    <i class="fas fa-link"></i>
+                                                    <a href="{{ profile_user.website }}" target="_blank" rel="noopener">
+                                                        Website
+                                                    </a>
+                                                </span>
+                                            {% endif %}
+                                            
+                                            <span class="meta-item">
+                                                <i class="fas fa-calendar-alt"></i>
+                                                Joined {{ profile_user.date_joined|date:"F Y" }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4 text-end">
+                                {% if is_own_profile %}
+                                    <div class="profile-actions">
+                                        <a href="{% url 'profile:edit' %}" class="btn btn-primary">
+                                            <i class="fas fa-edit me-2"></i>Edit Profile
+                                        </a>
+                                        
+                                        {% if profile_completion < 100 %}
+                                            <div class="profile-completion-widget mt-2">
+                                                <small class="text-muted">Profile completion</small>
+                                                <div class="progress mb-1" style="height: 6px;">
+                                                    <div class="progress-bar" style="width: {{ profile_completion }}%"></div>
+                                                </div>
+                                                <small class="text-muted">{{ profile_completion }}% complete</small>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Profile Content -->
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <!-- Profile Stats -->
+                <div class="profile-stats-card">
+                    <h5><i class="fas fa-chart-line me-2"></i>Travel Stats</h5>
+                    
+                    <div class="stat-item">
+                        <div class="stat-number">{{ trip_count }}</div>
+                        <div class="stat-label">Trip{{ trip_count|pluralize }} Planned</div>
+                    </div>
+                    
+                    {% if profile_user.previous_destinations %}
+                        <div class="stat-item">
+                            <div class="stat-label">Places Visited</div>
+                            <div class="stat-content">{{ profile_user.previous_destinations }}</div>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Travel Preferences -->
+                {% if profile_user.travel_style or profile_user.preferred_budget_range %}
+                    <div class="profile-preferences-card mt-3">
+                        <h5><i class="fas fa-heart me-2"></i>Travel Preferences</h5>
+                        
+                        {% if profile_user.travel_style %}
+                            <div class="preference-item">
+                                <strong>Style:</strong>
+                                <span class="preference-badge">{{ profile_user.get_travel_style_display|default:profile_user.travel_style|title }}</span>
+                            </div>
+                        {% endif %}
+                        
+                        {% if profile_user.preferred_budget_range %}
+                            <div class="preference-item">
+                                <strong>Budget:</strong>
+                                <span class="preference-badge">{{ profile_user.get_preferred_budget_range_display|default:profile_user.preferred_budget_range|title }}</span>
+                            </div>
+                        {% endif %}
+                        
+                        {% if profile_user.dietary_restrictions %}
+                            <div class="preference-item">
+                                <strong>Dietary:</strong>
+                                <span class="preference-badge">{{ profile_user.dietary_restrictions }}</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="col-md-8">
+                <!-- Recent Trips -->
+                <div class="recent-trips-card">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5><i class="fas fa-suitcase-rolling me-2"></i>Recent Trips</h5>
+                        {% if is_own_profile and trip_count > 0 %}
+                            <a href="{% url 'profile:trips' %}" class="btn btn-outline-primary btn-sm">
+                                View All <i class="fas fa-arrow-right ms-1"></i>
+                            </a>
+                        {% endif %}
+                    </div>
+                    
+                    {% if trip_requests %}
+                        <div class="trips-grid">
+                            {% for trip in trip_requests %}
+                                <div class="trip-card">
+                                    <div class="trip-header">
+                                        <h6 class="trip-destination">
+                                            <i class="fas fa-map-marker-alt me-2"></i>
+                                            {{ trip.destination }}
+                                        </h6>
+                                        <span class="trip-date">{{ trip.created_at|date:"M d, Y" }}</span>
+                                    </div>
+                                    
+                                    <div class="trip-details">
+                                        <div class="trip-info">
+                                            <span class="info-item">
+                                                <i class="fas fa-clock"></i>
+                                                {{ trip.duration }} day{{ trip.duration|pluralize }}
+                                            </span>
+                                            <span class="info-item">
+                                                <i class="fas fa-users"></i>
+                                                {{ trip.number_of_travelers }} traveler{{ trip.number_of_travelers|pluralize }}
+                                            </span>
+                                            <span class="info-item">
+                                                <i class="fas fa-dollar-sign"></i>
+                                                ${{ trip.budget|floatformat:0 }}
+                                            </span>
+                                        </div>
+                                        
+                                        {% if is_own_profile %}
+                                            <div class="trip-actions">
+                                                <a href="{% url 'home:trip_request_detail' trip.pk %}" 
+                                                   class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-eye me-1"></i>View
+                                                </a>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="empty-state">
+                            <i class="fas fa-suitcase fa-3x text-muted mb-3"></i>
+                            <h6 class="text-muted">No trips planned yet</h6>
+                            {% if is_own_profile %}
+                                <p class="text-muted">Start planning your next adventure!</p>
+                                <a href="{% url 'home:trip_request_create' %}" class="btn btn-primary">
+                                    <i class="fas fa-plus me-2"></i>Plan Your First Trip
+                                </a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Profile Styles */
+.profile-container {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    min-height: calc(100vh - 80px);
+    padding: 2rem 0;
+}
+
+.profile-header-card {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    margin-bottom: 2rem;
+}
+
+.cover-section {
+    height: 200px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    position: relative;
+}
+
+.gradient-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.8) 0%, rgba(118, 75, 162, 0.8) 100%);
+}
+
+.profile-info-section {
+    padding: 0 2rem 2rem 2rem;
+    margin-top: -100px;
+    position: relative;
+    z-index: 10;
+}
+
+.profile-avatar-section {
+    display: flex;
+    align-items: flex-end;
+    gap: 1.5rem;
+}
+
+.profile-avatar {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.profile-picture {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    border: 5px solid white;
+    object-fit: cover;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.google-badge {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: #4285f4;
+    color: white;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    border: 3px solid white;
+}
+
+.profile-details {
+    flex: 1;
+    margin-bottom: 20px;
+}
+
+.profile-name {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #333;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.profile-username {
+    font-size: 1.1rem;
+    color: #667eea;
+    margin: 0.5rem 0;
+    font-weight: 500;
+}
+
+.profile-bio {
+    font-size: 1.1rem;
+    color: #666;
+    margin: 1rem 0;
+    line-height: 1.5;
+}
+
+.profile-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.meta-item {
+    color: #666;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.meta-item i {
+    color: #667eea;
+}
+
+.meta-item a {
+    color: #667eea;
+    text-decoration: none;
+}
+
+.meta-item a:hover {
+    text-decoration: underline;
+}
+
+.profile-actions {
+    text-align: right;
+}
+
+.profile-completion-widget {
+    max-width: 200px;
+    margin-left: auto;
+}
+
+/* Cards */
+.profile-stats-card,
+.profile-preferences-card,
+.recent-trips-card {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    margin-bottom: 1rem;
+}
+
+.profile-stats-card h5,
+.profile-preferences-card h5,
+.recent-trips-card h5 {
+    color: #333;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+/* Stats */
+.stat-item {
+    margin-bottom: 1rem;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #667eea;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    color: #666;
+    font-weight: 500;
+}
+
+.stat-content {
+    font-size: 0.9rem;
+    color: #333;
+    margin-top: 0.5rem;
+}
+
+/* Preferences */
+.preference-item {
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+}
+
+.preference-badge {
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+/* Trips */
+.trips-grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.trip-card {
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 1rem;
+    transition: all 0.3s ease;
+}
+
+.trip-card:hover {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.trip-header {
+    display: flex;
+    justify-content: between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+}
+
+.trip-destination {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+    flex: 1;
+}
+
+.trip-date {
+    font-size: 0.8rem;
+    color: #666;
+    font-weight: 500;
+}
+
+.trip-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.trip-info {
+    display: flex;
+    gap: 1rem;
+}
+
+.info-item {
+    font-size: 0.8rem;
+    color: #666;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.info-item i {
+    color: #667eea;
+    width: 12px;
+}
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .profile-avatar-section {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    
+    .profile-picture {
+        width: 120px;
+        height: 120px;
+    }
+    
+    .profile-name {
+        font-size: 2rem;
+    }
+    
+    .profile-actions {
+        text-align: center;
+        margin-top: 1rem;
+    }
+    
+    .profile-meta {
+        justify-content: center;
+    }
+    
+    .trip-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+}
+</style>
+{% endblock %}

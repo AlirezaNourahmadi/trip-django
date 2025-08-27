@@ -529,20 +529,15 @@
                     {% if user.is_authenticated %}
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdown">
-                                {% if user.avatar_url %}
-                                    <img src="{{ user.avatar_url }}" alt="Profile" 
-                                         class="rounded-circle me-2" 
-                                         style="width: 32px; height: 32px; object-fit: cover;">
-                                {% else %}
-                                    <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center me-2" 
-                                         style="width: 32px; height: 32px; font-size: 14px; font-weight: bold;">
-                                        {{ user.first_name|first|default:user.username|first|upper }}
-                                    </div>
-                                {% endif %}
+                                <img src="{{ user.get_profile_picture_url }}" alt="Profile" 
+                                    class="rounded-circle me-2" 
+                                    style="width: 32px; height: 32px; object-fit: cover;">
+                                
                                 <span>{{ user.first_name|default:user.username }}</span>
                             </a>
                             <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{% url 'profile' %}">Profile</a></li>
+                                <li><a class="dropdown-item" href="{% url 'profile' %}"><i class="fas fa-user me-2"></i>View Profile</a></li>
+                                <li><a class="dropdown-item" href="{% url 'edit_profile' %}"><i class="fas fa-edit me-2"></i>Edit Profile</a></li>
                                 {% if user.is_superuser %}
                                     <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item" href="{% url 'cost_dashboard' %}"><i class="fas fa-chart-line me-2"></i>Cost Dashboard</a></li>

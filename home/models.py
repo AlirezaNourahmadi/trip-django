@@ -1,8 +1,35 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from PIL import Image
+import os
+from django.conf import settings
+from django.urls import reverse
 # Create your models here.
 
+def user_profile_picture_path(instance, filename):
+    """Generate upload path for user profile pictures"""
+    # Get file extension
+    ext = filename.split('.')[-1]
+    # Create filename as user_id.extension
+    filename = f'profile_{instance.id}.{ext}'
+    return os.path.join('profile_pictures', filename)
+
 class User(AbstractUser):
+    # Profile information
+    bio = models.TextField(max_length=500, blank=True, null=True, help_text="Tell us about yourself")
+    phone_number = models.CharField(max_length=20, blank=True, null=True)
+    date_of_birth = models.DateField(blank=True, null=True)
+    location = models.CharField(max_length=100, blank=True, null=True)
+    website = models.URLField(blank=True, null=True)
+    
+    # Profile picture
+    profile_picture = models.ImageField(
+        upload_to=user_profile_picture_path, 
+        blank=True, 
+        null=True,
+        help_text="Upload your profile picture"
+    )
+    
     # Additional user preferences for personalized recommendations
     preferred_budget_range = models.CharField(max_length=50, blank=True, null=True)
     travel_style = models.CharField(max_length=100, blank=True, null=True)
@@ -14,6 +41,125 @@ class User(AbstractUser):
     avatar_url = models.URLField(blank=True, null=True)
     is_google_user = models.BooleanField(default=False)
     google_profile_data = models.JSONField(default=dict, blank=True)
+    
+    # Profile completion tracking
+    profile_completed = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def save(self, *args, **kwargs):
+        """Override save to resize profile picture and update profile completion"""
+        super().save(*args, **kwargs)
+        
+        # Resize profile picture if it exists
+        if self.profile_picture:
+            self.resize_profile_picture()
+        
+        # Update profile completion status
+        self.update_profile_completion()
+    
+    def resize_profile_picture(self):
+        """Resize profile picture to a standard size"""
+        try:
+            img_path = self.profile_picture.path
+            img = Image.open(img_path)
+            
+            # Convert to RGB if necessary
+            if img.mode in ("RGBA", "LA", "P"):
+                img = img.convert("RGB")
+            
+            # Resize image
+            output_size = (300, 300)
+            img.thumbnail(output_size, Image.Resampling.LANCZOS)
+            
+            # Save the resized image
+            img.save(img_path, quality=95)
+        except Exception as e:
+            print(f"Error resizing profile picture for user {self.username}: {e}")
+    
+    def update_profile_completion(self):
+        """Update profile completion status based on filled fields"""
+        required_fields = [
+            self.first_name,
+            self.last_name,
+            self.email,
+        ]
+        
+        optional_fields = [
+            self.bio,
+            self.phone_number,
+            self.location,
+        ]
+        
+        # Check if all required fields are filled
+        required_complete = all(field for field in required_fields)
+        
+        # Check if at least 2 optional fields are filled
+        optional_complete = sum(1 for field in optional_fields if field) >= 2
+        
+        # Check if profile picture is set (either uploaded or from Google)
+        has_picture = self.profile_picture or self.avatar_url
+        
+        # Profile is complete if all conditions are met
+        new_completion_status = required_complete and optional_complete and has_picture
+        
+        if self.profile_completed != new_completion_status:
+            self.profile_completed = new_completion_status
+            # Save without calling the full save method to avoid recursion
+            User.objects.filter(pk=self.pk).update(profile_completed=new_completion_status)
+    
+    def get_profile_picture_url(self):
+        """Get profile picture URL, preferring uploaded picture over Google avatar"""
+        if self.profile_picture:
+            return self.profile_picture.url
+        elif self.avatar_url:
+            return self.avatar_url
+        else:
+            # Return default avatar
+            return f"{settings.STATIC_URL}images/default_avatar.png"
+    
+    def get_display_name(self):
+        """Get user's display name"""
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        elif self.first_name:
+            return self.first_name
+        else:
+            return self.username
+    
+    def get_profile_completion_percentage(self):
+        """Calculate profile completion percentage"""
+        fields_to_check = [
+            ('first_name', 1),
+            ('last_name', 1),
+            ('email', 1),
+            ('bio', 1),
+            ('phone_number', 1),
+            ('date_of_birth', 1),
+            ('location', 1),
+            ('profile_picture', 1),
+            ('avatar_url', 1),  # Alternative to profile_picture
+        ]
+        
+        total_weight = 8  # Total possible points
+        current_weight = 0
+        
+        for field_name, weight in fields_to_check:
+            field_value = getattr(self, field_name)
+            if field_value:
+                current_weight += weight
+                
+                # Don't double count if both profile_picture and avatar_url exist
+                if field_name == 'avatar_url' and self.profile_picture:
+                    current_weight -= weight
+        
+        return min(100, int((current_weight / total_weight) * 100))
+    
+    def get_absolute_url(self):
+        """Get URL for user profile"""
+        return reverse('profile:view', kwargs={'username': self.username})
+    
+    def __str__(self):
+        return self.get_display_name()
 
 class Destination(models.Model):
     name = models.CharField(max_length=255)

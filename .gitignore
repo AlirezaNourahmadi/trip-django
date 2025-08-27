@@ -1,14 +1,48 @@
-# Environment variables
-.env
+# Django Project .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+PYTHONPATH
 
 # Django
 *.log
 *.pot
 *.pyc
-__pycache__/
+*.mo
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Media and Static files
+/media/
+/static/
+/staticfiles/
 media/
 staticfiles/
 
@@ -24,7 +58,7 @@ env/
 *.swo
 *~
 
-# OS
+# Operating System
 .DS_Store
 .DS_Store?
 ._*
@@ -33,17 +67,70 @@ env/
 ehthumbs.db
 Thumbs.db
 
-# .gitignore
-*.pyc
-__pycache__/
-db.sqlite3
-.env
-/staticfiles
-/media
-*.log
-*.pot
-*.mo
-*.py[cod]
-.DS_Store
-.vscode/
-.idea/
+# Testing
+.coverage
+.pytest_cache/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+htmlcov/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# celery beat schedule file
+celerybeat-schedule
+
+# SageMath parsed files
+*.sage.py
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Logs
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+
+# API Keys and Secrets (additional safety)
+api_keys.py
+secrets.py
+
+# Deployment
+*.sock
+*.pid
+
+# Backup files
+*.bak
+*.backup
+
+# Generated PDFs (if storing in repo)
+# /media/pdfs/
+
+# Node.js (if using frontend build tools)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

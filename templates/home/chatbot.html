@@ -1,0 +1,540 @@
+{% extends "base/base.html" %}
+
+{% block title %}Chatbot - Trip-Django{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chat-hero {
+        background: var(--primary-gradient);
+        padding: 3rem 0;
+        color: white;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .chat-hero::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><circle fill="%23ffffff08" cx="100" cy="100" r="50"/><circle fill="%23ffffff05" cx="900" cy="200" r="80"/><circle fill="%23ffffff03" cx="500" cy="300" r="60"/></svg>');
+        animation: float 8s ease-in-out infinite;
+    }
+    
+    .chat-hero h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        position: relative;
+        z-index: 2;
+    }
+    
+    .chat-hero p {
+        font-size: 1.2rem;
+        opacity: 0.9;
+        position: relative;
+        z-index: 2;
+    }
+    
+    .chat-main {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-radius: 20px;
+        box-shadow: var(--card-shadow);
+        margin-top: -2rem;
+        position: relative;
+        z-index: 3;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .chat-header {
+        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 20px 20px 0 0;
+        display: flex;
+        justify-content: between;
+        align-items: center;
+    }
+    
+    .chat-controls .btn {
+        margin-left: 0.5rem;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: var(--transition);
+    }
+    
+    .chat-controls .btn:hover {
+        transform: scale(1.1);
+    }
+    
+    .chat-input-area {
+        background: rgba(248, 249, 250, 0.8);
+        padding: 1.5rem;
+        border-radius: 0 0 20px 20px;
+    }
+    
+    .modern-input-group {
+        background: white;
+        border-radius: 50px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        border: 2px solid rgba(0,0,0,0.05);
+        transition: var(--transition);
+        overflow: hidden;
+    }
+    
+    .modern-input-group:focus-within {
+        border-color: #667eea;
+        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.2);
+        transform: translateY(-2px);
+    }
+    
+    .modern-input-group .form-control {
+        border: none;
+        background: transparent;
+        padding: 1rem 1.5rem;
+        font-size: 1rem;
+    }
+    
+    .modern-input-group .form-control:focus {
+        box-shadow: none;
+        border: none;
+    }
+    
+    .modern-input-group .btn {
+        border: none;
+        background: transparent;
+        color: #6c757d;
+        padding: 1rem;
+        transition: var(--transition);
+    }
+    
+    .modern-input-group .btn:hover {
+        color: #667eea;
+        transform: scale(1.1);
+    }
+    
+    .btn-send {
+        background: var(--primary-gradient) !important;
+        color: white !important;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        margin-left: 0.5rem;
+    }
+    
+    .btn-send:hover {
+        transform: scale(1.1) !important;
+        color: white !important;
+    }
+    
+    .alert-modern {
+        border-radius: 15px;
+        border: none;
+        backdrop-filter: blur(10px);
+    }
+    
+    .alert-info {
+        background: rgba(102, 126, 234, 0.1);
+        color: #667eea;
+    }
+    
+    .alert-warning {
+        background: rgba(255, 193, 7, 0.1);
+        color: #856404;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="chat-hero">
+    <div class="container">
+        <h1>🤖 AI Travel Assistant</h1>
+        <p>Powered by GPT-4 • Your personal travel planning companion</p>
+    </div>
+</div>
+
+<div class="container">
+    <div class="chat-container">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="chat-main">
+                    <div class="chat-header">
+                        <div>
+                            <h4 class="mb-1">✨ Travel Chat</h4>
+                            <small class="opacity-75">Ask me anything about destinations, planning, or travel tips!</small>
+                        </div>
+                        <div class="chat-controls">
+                            <button class="btn btn-outline-light" id="clearChatBtn" title="Clear Chat">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            <button class="btn btn-outline-light" id="voiceToggleBtn" title="Voice Recognition">
+                                <i class="fas fa-microphone"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="chat-body p-0">
+                        <div class="chat-messages" id="chatMessages">
+                            <div class="message bot-message">
+                                <strong>Assistant:</strong> Hello! I'm your travel assistant. I can help you with trip planning, destination information, and travel advice. You can send me text messages, attach files or images, or use voice messages. How can I assist you today?
+                            </div>
+                        </div>
+                        
+                        <!-- File Preview Area -->
+                        <div id="filePreview" class="file-preview-area d-none">
+                            <div class="alert alert-info">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div id="fileInfo"></div>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" id="removeFileBtn">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Voice Recording Area -->
+                        <div id="voiceRecording" class="voice-recording-area d-none">
+                            <div class="alert alert-warning">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <i class="fas fa-microphone-alt text-danger"></i>
+                                        <span id="recordingStatus">Recording... Click to stop</span>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-danger" id="stopRecordingBtn">
+                                        <i class="fas fa-stop"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <form id="chatForm" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <div class="input-group">
+                                <input type="text" id="messageInput" name="message" class="form-control" placeholder="Type your message here..." autocomplete="off">
+                                <input type="file" id="fileInput" name="file_attachment" class="d-none" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt,.csv,.xlsx">
+                                <input type="file" id="voiceInput" name="voice_attachment" class="d-none" accept=".mp3,.wav,.ogg,.m4a">
+                                
+                                <div class="input-group-append">
+                                    <button type="button" class="btn btn-outline-secondary" id="attachFileBtn" title="Attach File">
+                                        <i class="fas fa-paperclip"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="attachImageBtn" title="Attach Image">
+                                        <i class="fas fa-image"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="recordVoiceBtn" title="Record Voice">
+                                        <i class="fas fa-microphone"></i>
+                                    </button>
+                                    <button type="submit" class="btn btn-primary" id="sendBtn">
+                                        <i class="fas fa-paper-plane"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    const chatMessages = $('#chatMessages');
+    const chatForm = $('#chatForm');
+    const messageInput = $('#messageInput');
+    const fileInput = $('#fileInput');
+    const voiceInput = $('#voiceInput');
+    const filePreview = $('#filePreview');
+    const voiceRecording = $('#voiceRecording');
+    
+    let mediaRecorder;
+    let audioChunks = [];
+    let isRecording = false;
+    let speechRecognition;
+    let isListening = false;
+    
+    // Check for browser support
+    if ('webkitSpeechRecognition' in window) {
+        speechRecognition = new webkitSpeechRecognition();
+        speechRecognition.continuous = true;
+        speechRecognition.interimResults = true;
+        speechRecognition.lang = 'en-US';
+    }
+    
+    // Auto-scroll to bottom function
+    function scrollToBottom() {
+        chatMessages.scrollTop(chatMessages[0].scrollHeight);
+    }
+    
+    // Add message to chat
+    function addMessage(message, isUser = false, attachment = null) {
+        const messageClass = isUser ? 'user-message' : 'bot-message';
+        const sender = isUser ? 'You' : 'Assistant';
+        const timestamp = new Date().toLocaleTimeString();
+        
+        let attachmentHtml = '';
+        if (attachment) {
+            if (attachment.type === 'image') {
+                attachmentHtml = `<div class="mt-2"><img src="${attachment.url}" class="img-fluid" style="max-width: 200px; border-radius: 8px;" alt="Attached image"></div>`;
+            } else if (attachment.type === 'file') {
+                attachmentHtml = `<div class="mt-2"><i class="fas fa-file"></i> <a href="${attachment.url}" target="_blank">${attachment.name}</a></div>`;
+            } else if (attachment.type === 'voice') {
+                attachmentHtml = `<div class="mt-2"><audio controls><source src="${attachment.url}" type="audio/mpeg"></audio></div>`;
+            }
+        }
+        
+        const messageHtml = `
+            <div class="message ${messageClass}">
+                <div class="d-flex justify-content-between">
+                    <strong>${sender}:</strong>
+                    <small class="text-muted">${timestamp}</small>
+                </div>
+                <div>${message}</div>
+                ${attachmentHtml}
+            </div>
+        `;
+        chatMessages.append(messageHtml);
+        scrollToBottom();
+    }
+    
+    // Handle form submission
+    chatForm.on('submit', function(e) {
+        e.preventDefault();
+        
+        const message = messageInput.val().trim();
+        const hasFile = fileInput[0].files.length > 0;
+        const hasVoice = voiceInput[0].files.length > 0;
+        
+        if (!message && !hasFile && !hasVoice) return;
+        
+        // Create FormData for file upload
+        const formData = new FormData();
+        formData.append('message', message);
+        formData.append('csrfmiddlewaretoken', $('[name=csrfmiddlewaretoken]').val());
+        
+        if (hasFile) {
+            formData.append('file_attachment', fileInput[0].files[0]);
+        }
+        if (hasVoice) {
+            formData.append('voice_attachment', voiceInput[0].files[0]);
+        }
+        
+        // Add user message with attachments
+        let attachment = null;
+        if (hasFile) {
+            const file = fileInput[0].files[0];
+            if (file.type.startsWith('image/')) {
+                attachment = {
+                    type: 'image',
+                    url: URL.createObjectURL(file),
+                    name: file.name
+                };
+            } else {
+                attachment = {
+                    type: 'file',
+                    url: '#',
+                    name: file.name
+                };
+            }
+        } else if (hasVoice) {
+            attachment = {
+                type: 'voice',
+                url: URL.createObjectURL(voiceInput[0].files[0]),
+                name: 'Voice message'
+            };
+        }
+        
+        addMessage(message || 'Sent an attachment', true, attachment);
+        
+        // Clear inputs
+        messageInput.val('');
+        fileInput.val('');
+        voiceInput.val('');
+        filePreview.addClass('d-none');
+        
+        // Show typing indicator
+        addMessage('Typing...', false);
+        
+        // Send AJAX request
+        $.ajax({
+            url: "{% url 'chatbot' %}",
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                // Remove typing indicator
+                chatMessages.find('.message').last().remove();
+                
+                // Add bot response
+                addMessage(response.response, false);
+            },
+            error: function() {
+                // Remove typing indicator
+                chatMessages.find('.message').last().remove();
+                
+                // Add error message
+                addMessage('Sorry, I encountered an error. Please try again.', false);
+            }
+        });
+    });
+    
+    // File attachment handlers
+    $('#attachFileBtn').on('click', function() {
+        fileInput.click();
+    });
+    
+    $('#attachImageBtn').on('click', function() {
+        fileInput.attr('accept', '.jpg,.jpeg,.png,.gif');
+        fileInput.click();
+    });
+    
+    // File input change handler
+    fileInput.on('change', function() {
+        const file = this.files[0];
+        if (file) {
+            const fileSize = (file.size / 1024 / 1024).toFixed(2);
+            $('#fileInfo').html(`<i class="fas fa-file"></i> ${file.name} (${fileSize} MB)`);
+            filePreview.removeClass('d-none');
+        }
+    });
+    
+    // Remove file handler
+    $('#removeFileBtn').on('click', function() {
+        fileInput.val('');
+        filePreview.addClass('d-none');
+    });
+    
+    // Voice recording
+    $('#recordVoiceBtn').on('click', function() {
+        if (!isRecording) {
+            startRecording();
+        } else {
+            stopRecording();
+        }
+    });
+    
+    $('#stopRecordingBtn').on('click', function() {
+        stopRecording();
+    });
+    
+    function startRecording() {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = event => {
+                    audioChunks.push(event.data);
+                };
+                
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    const audioFile = new File([audioBlob], 'voice_message.wav', { type: 'audio/wav' });
+                    
+                    // Create a DataTransfer object to set the file
+                    const dt = new DataTransfer();
+                    dt.items.add(audioFile);
+                    voiceInput[0].files = dt.files;
+                    
+                    voiceRecording.addClass('d-none');
+                    isRecording = false;
+                    
+                    // Auto-send voice message
+                    chatForm.submit();
+                };
+                
+                mediaRecorder.start();
+                isRecording = true;
+                voiceRecording.removeClass('d-none');
+                $('#recordVoiceBtn').addClass('btn-danger').removeClass('btn-outline-secondary');
+            })
+            .catch(err => {
+                console.error('Error accessing microphone:', err);
+                alert('Could not access microphone. Please check permissions.');
+            });
+    }
+    
+    function stopRecording() {
+        if (mediaRecorder && isRecording) {
+            mediaRecorder.stop();
+            mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            $('#recordVoiceBtn').removeClass('btn-danger').addClass('btn-outline-secondary');
+        }
+    }
+    
+    // Speech recognition
+    $('#voiceToggleBtn').on('click', function() {
+        if (!speechRecognition) {
+            alert('Speech recognition is not supported in this browser.');
+            return;
+        }
+        
+        if (!isListening) {
+            startListening();
+        } else {
+            stopListening();
+        }
+    });
+    
+    function startListening() {
+        speechRecognition.start();
+        isListening = true;
+        $('#voiceToggleBtn').addClass('btn-success').removeClass('btn-outline-light');
+        
+        speechRecognition.onresult = function(event) {
+            let transcript = '';
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                transcript += event.results[i][0].transcript;
+            }
+            messageInput.val(transcript);
+        };
+        
+        speechRecognition.onend = function() {
+            isListening = false;
+            $('#voiceToggleBtn').removeClass('btn-success').addClass('btn-outline-light');
+        };
+    }
+    
+    function stopListening() {
+        speechRecognition.stop();
+        isListening = false;
+        $('#voiceToggleBtn').removeClass('btn-success').addClass('btn-outline-light');
+    }
+    
+    // Clear chat
+    $('#clearChatBtn').on('click', function() {
+        if (confirm('Are you sure you want to clear the chat?')) {
+            chatMessages.html(`
+                <div class="message bot-message">
+                    <strong>Assistant:</strong> Hello! I'm your travel assistant. I can help you with trip planning, destination information, and travel advice. You can send me text messages, attach files or images, or use voice messages. How can I assist you today?
+                </div>
+            `);
+        }
+    });
+    
+    // Enter key to send (with Shift+Enter for new line)
+    messageInput.on('keypress', function(e) {
+        if (e.which === 13 && !e.shiftKey) {
+            e.preventDefault();
+            chatForm.submit();
+        }
+    });
+    
+    // Focus on input when page loads
+    messageInput.focus();
+    
+    // Initial scroll
+    scrollToBottom();
+});
+</script>
+{% endblock %}

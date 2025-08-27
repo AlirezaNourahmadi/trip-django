@@ -5,10 +5,13 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.auth import login
 from django.contrib import messages
-from .models import TripPlanRequest, GeneratedPlan, ChatMessage
+from .models import TripPlanRequest, GeneratedPlan, ChatMessage, User
 from django.http import HttpResponseRedirect, JsonResponse
 from django.urls import reverse, reverse_lazy
-from .forms import TripPlanRequestForm, CustomUserCreationForm, ChatMessageForm
+from .forms import (
+    TripPlanRequestForm, CustomUserCreationForm, ChatMessageForm,
+    ProfilePictureForm, PersonalInfoForm, TravelPreferencesForm, CustomPasswordChangeForm
+)
 from .services import ai_service
 import json
 import uuid
@@ -156,10 +159,24 @@ class ProfileView(LoginRequiredMixin, View):
             
             trip_data.append(trip_info)
         
-        return render(request, 'home/profile.html', {
+        # Enhanced profile data
+        user = request.user
+        profile_completion = user.get_profile_completion_percentage()
+        profile_picture_url = user.get_profile_picture_url()
+        display_name = user.get_display_name()
+        
+        context = {
             'trip_data': trip_data,
-            'tickets': tickets
-        })
+            'tickets': tickets,
+            'profile_user': user,
+            'is_own_profile': True,
+            'profile_completion': profile_completion,
+            'profile_picture_url': profile_picture_url,
+            'display_name': display_name,
+            'user': user,  # Keep for compatibility
+        }
+        
+        return render(request, 'home/profile.html', context)
 
 class TripRequestUpdateView(LoginRequiredMixin, View):
     """View for updating existing trip requests"""
@@ -416,3 +433,84 @@ class PrivacyPolicyView(View):
     
     def get(self, request):
         return render(request, 'legal/privacy_policy.html')
+
+
+# Profile Editing Views
+class EditProfileView(LoginRequiredMixin, View):
+    """Edit user profile - main page with tabs"""
+    
+    def get(self, request):
+        context = {
+            'personal_form': PersonalInfoForm(instance=request.user),
+            'picture_form': ProfilePictureForm(instance=request.user),
+            'travel_form': TravelPreferencesForm(instance=request.user),
+            'password_form': CustomPasswordChangeForm(user=request.user),
+            'profile_completion': request.user.get_profile_completion_percentage(),
+            'user': request.user,
+        }
+        
+        return render(request, 'home/edit_profile.html', context)
+    
+    def post(self, request):
+        # Handle form submissions based on which form was submitted
+        form_type = request.POST.get('form_type')
+        
+        if form_type == 'personal_info':
+            form = PersonalInfoForm(request.POST, instance=request.user)
+            if form.is_valid():
+                form.save()
+                messages.success(request, 'Personal information updated successfully!')
+            else:
+                for field, errors in form.errors.items():
+                    for error in errors:
+                        messages.error(request, f"{field}: {error}")
+        
+        elif form_type == 'profile_picture':
+            form = ProfilePictureForm(request.POST, request.FILES, instance=request.user)
+            if form.is_valid():
+                user = form.save()
+                messages.success(request, 'Profile picture updated successfully!')
+            else:
+                for field, errors in form.errors.items():
+                    for error in errors:
+                        messages.error(request, f"{field}: {error}")
+        
+        elif form_type == 'travel_preferences':
+            form = TravelPreferencesForm(request.POST, instance=request.user)
+            if form.is_valid():
+                form.save()
+                messages.success(request, 'Travel preferences updated successfully!')
+            else:
+                for field, errors in form.errors.items():
+                    for error in errors:
+                        messages.error(request, f"{field}: {error}")
+        
+        elif form_type == 'change_password':
+            from django.contrib.auth import update_session_auth_hash
+            form = CustomPasswordChangeForm(user=request.user, data=request.POST)
+            if form.is_valid():
+                user = form.save()
+                update_session_auth_hash(request, user)  # Keep user logged in
+                messages.success(request, 'Password changed successfully!')
+            else:
+                for field, errors in form.errors.items():
+                    for error in errors:
+                        messages.error(request, f"{field}: {error}")
+        
+        return HttpResponseRedirect(reverse('edit_profile'))
+
+
+class RemoveProfilePictureView(LoginRequiredMixin, View):
+    """Remove user's profile picture"""
+    
+    def post(self, request):
+        if request.user.profile_picture:
+            # Delete the file
+            request.user.profile_picture.delete()
+            request.user.save()
+            messages.success(request, 'Profile picture removed successfully!')
+        else:
+            messages.info(request, 'No profile picture to remove.')
+        
+        return HttpResponseRedirect(reverse('edit_profile'))
+

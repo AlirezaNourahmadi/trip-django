@@ -3,7 +3,7 @@ import base64
 import json
 import hashlib
 from django.conf import settings
-from django.core.cache import cache
+from django.core.cache import cache, caches
 from openai import OpenAI
 import logging
 import io
@@ -29,6 +29,8 @@ class CostOptimizedGoogleMapsService:
     def __init__(self):
         self.gmaps = googlemaps.Client(key=settings.GOOGLE_MAPS_API_KEY)
         self.cache_timeout = 86400 * 7  # Cache for 7 days
+        self.long_term_cache = caches['long_term']  # Use long-term Redis cache
+        self.api_cache = caches['api_cache']  # Use API-specific cache
     
     def _get_cache_key(self, operation, *args):
         """Generate cache key for operations"""
@@ -39,8 +41,8 @@ class CostOptimizedGoogleMapsService:
         """Get place details with intelligent caching"""
         cache_key = self._get_cache_key("place_details", location_name, destination_city or "")
         
-        # Try cache first
-        cached_result = cache.get(cache_key)
+        # Try long-term cache first (7 days TTL for place details)
+        cached_result = self.long_term_cache.get(cache_key)
         from .cost_monitor import cost_monitor
         
         if cached_result:
@@ -106,15 +108,15 @@ class CostOptimizedGoogleMapsService:
                     except Exception as e:
                         logger.warning(f"Error fetching photos for {location_name}: {e}")
                 
-                # Cache the result
-                cache.set(cache_key, place_details, self.cache_timeout)
+                # Cache the result in long-term cache
+                self.long_term_cache.set(cache_key, place_details, self.cache_timeout)
                 return place_details
                 
         except Exception as e:
             logger.error(f"Error getting place details for {location_name}: {e}")
         
         # Cache negative result to avoid repeated failed calls
-        cache.set(cache_key, None, 3600)  # Cache for 1 hour
+        self.api_cache.set(cache_key, None, 3600)  # Cache for 1 hour
         return None
     
     def _is_important_location(self, location_name):
@@ -137,7 +139,7 @@ class CostOptimizedGoogleMapsService:
         """Get autocomplete suggestions with caching"""
         cache_key = self._get_cache_key("autocomplete", query, limit)
         
-        cached_result = cache.get(cache_key)
+        cached_result = self.api_cache.get(cache_key)
         from .cost_monitor import cost_monitor
 
         if cached_result:
@@ -163,8 +165,8 @@ class CostOptimizedGoogleMapsService:
                 }
                 suggestions.append(suggestion)
             
-            # Cache for 24 hours
-            cache.set(cache_key, suggestions, 86400)
+            # Cache autocomplete for 24 hours in API cache
+            self.api_cache.set(cache_key, suggestions, 86400)
             return suggestions
             
         except Exception as e:
@@ -180,6 +182,7 @@ class CostOptimizedAIService:
         self.max_tokens = 3000  # Good balance of detail and cost
         self.temperature = 0.7  # Balanced creativity for travel planning
         self.cache_timeout = 86400 * 3  # Cache for 3 days
+        self.default_cache = caches['default']  # Use default Redis cache for trip plans
     
     def _get_cache_key(self, operation, *args):
         """Generate cache key for AI operations"""
@@ -202,8 +205,8 @@ class CostOptimizedAIService:
         
         cache_key = self._get_cache_key("trip_plan", *cache_key_data)
         
-        # Try cache first
-        cached_result = cache.get(cache_key)
+        # Try default cache first for trip plans
+        cached_result = self.default_cache.get(cache_key)
         from .cost_monitor import cost_monitor
 
         if cached_result:
@@ -218,26 +221,30 @@ class CostOptimizedAIService:
         # Use cost-optimized prompt (shorter, more focused)
         prompt = f"""Create a {trip_request.duration}-day trip plan for {trip_request.destination}.
 
-Budget: ${trip_request.budget} for {trip_request.number_of_travelers} travelers
+Budget: ${trip_request.budget} for {trip_request.number_of_travelers} travelers (EXCLUDING accommodation costs)
 Interests: {trip_request.interests or 'General tourism'}
 
 Format with emojis (NO markdown symbols):
 🌟 Trip to {trip_request.destination}
 
 🗓️ Day 1: [Activities]
-🏨 Hotel: [Name and cost estimate]
 🍽️ Meals: [Restaurant suggestions with costs]
-📍 Activities: [Specific locations with timing]
-💰 Daily cost: $[amount] per person
+📍 Activities: [Specific locations with timing and entry fees]
+🚗 Transport: [Local transport costs]
+💰 Daily cost (activities + food + transport): $[amount] per person
 
 Continue for all {trip_request.duration} days.
 
+🏨 ACCOMMODATION RECOMMENDATIONS (Budget Separately):
+- [Hotel Name]: Description and estimated cost per night for {trip_request.number_of_travelers} people
+- Alternative options with different price ranges
+
 Include:
-- Specific restaurant/hotel names
-- Activity costs
-- Transportation tips
-- Daily budget breakdown
-- Local tips
+- Specific restaurant names with meal costs
+- Activity entry fees and transport costs
+- Daily budget breakdown (activities, food, transport only)
+- Accommodation suggestions with separate pricing
+- Local money-saving tips
 
 Keep concise but informative."""
 
@@ -255,8 +262,8 @@ Keep concise but informative."""
             
             result = response.choices[0].message.content.strip()
             
-            # Cache the result
-            cache.set(cache_key, result, self.cache_timeout)
+            # Cache the result in default cache
+            self.default_cache.set(cache_key, result, self.cache_timeout)
             logger.info(f"Generated and cached trip plan for {trip_request.destination}")
             
             return result
@@ -424,20 +431,61 @@ def generate_clean_pdf(trip_plan_text, destination_city=None):
                 # Process normal content with location links
                 line_with_links = cleaned_line
                 
-                # More comprehensive location patterns
+                # Enhanced comprehensive location patterns
                 location_patterns = [
-                    r'\b([A-Z][a-zA-Z\s]+(?:Museum|Palace|Temple|Church|Cathedral|Tower|Bridge|Park|Square|Market|Gallery|Beach|Airport|Station|Restaurant|Café|Hotel))\b'
+                    # Famous landmarks and attractions (with special characters support)
+                    r'\b([A-Z][a-zA-Z\s&\'\-àáâãäåçèéêëìíîïñòóôõöùúûüý]+(?:Tower|Palace|Museum|Musée|Gallery|Cathedral|Church|Basilica|Temple|Mosque|Synagogue|Bridge|Park|Square|Market|Beach|Island|Castle|Fort|Memorial|Monument|Gardens?|Zoo|Aquarium|Theater|Theatre|Opera|Stadium|Arena))\b',
+                    
+                    # Specific venue types (with special characters)
+                    r'\b([A-Z][a-zA-Z\s&\'\-àáâãäåçèéêëìíîïñòóôõöùúûüý]+(?:Hotel|Restaurant|Café|Cafe|Bar|Pub|Bistro|Brasserie|Pizzeria|Trattoria|Taverna|Brewery|Winery|Shop|Store|Mall|Centre|Center|Station|Airport|Port|Pier))\b',
+                    
+                    # Geographic features and districts (enhanced)
+                    r'\b([A-Z][a-zA-Z\s&\'\-àáâãäåçèéêëìíîïñòóôõöùúûüý]+(?:District|Quarter|Neighborhood|Area|Village|Town|Lake|River|Mountain|Hill|Valley|Bay|Harbor|Harbour|Coast|Waterfront|Avenue|Street|Road|Boulevard))\b',
+                    
+                    # Famous Paris locations (specific patterns)
+                    r'\b(Eiffel Tower|Tour Eiffel|Louvre Museum|Musée du Louvre|Notre[-\s]?Dame Cathedral?|Arc de Triomphe|Sacré[-\s]?Cœur Basilica|Champs[-\s]?Élysées|Montmartre|Le Marais|Latin Quarter|Quartier Latin|Musée d\'Orsay|Trocadéro|Invalides|Panthéon|Place de la Concorde|Place Vendôme|Jardin du Luxembourg|Tuileries|Opéra Garnier|Moulin Rouge|Père Lachaise)\b',
+                    
+                    # Common international landmarks 
+                    r'\b(Big Ben|Statue of Liberty|Times Square|Central Park|Golden Gate Bridge|Sydney Opera House|Colosseum|Acropolis|Machu Picchu|Great Wall|Taj Mahal|Vatican City|Brandenburg Gate|Red Square|Tower Bridge|London Eye|Empire State Building)\b',
+                    
+                    # Action phrases with locations (Visit, Tour, Explore, etc.)
+                    r'(?:Visit|Tour|Explore|See|Walk through|Stroll through|Walk to|Go to)\s+((?:the\s+)?[A-Z][a-zA-Z\s&\'\-àáâãäåçèéêëìíîïñòóôõöùúûüý]{4,40}?)(?:\s*[\(,\.]|$)',
+                    
+                    # "the" + Location pattern (enhanced)
+                    r'\bthe\s+([A-Z][a-zA-Z\s&\'\-àáâãäåçèéêëìíîïñòóôõöùúûüý]+(?:Museum|Musée|Palace|Cathedral|Tower|Bridge|Park|Square|Market|Gallery|District|Quarter|Area|Village))\b',
+                    
+                    # Special locations with "of" (Catacombs of Paris, etc.)
+                    r'\b([A-Z][a-zA-Z\s]+\s+of\s+[A-Z][a-zA-Z\s]+)\b',
+                    
+                    # French bakeries and specific venue names (with et, de, des, du, etc.)
+                    r'\b([A-Z][a-zA-Z\s]+(?:et|de|des|du|le|la|les)\s+[A-Z][a-zA-Z\s]+)\b',
                 ]
                 
+                # Track processed locations to avoid duplicate replacements
+                processed_locations = set()
+                
                 for pattern in location_patterns:
-                    matches = re.finditer(pattern, line_with_links)
-                    for match in matches:
-                        location = match.group(1)
-                        maps_url = f"https://maps.google.com/?q={urllib.parse.quote(location + ', ' + (destination_city or ''))}"
-                        line_with_links = line_with_links.replace(
-                            location, 
-                            f'<a href="{maps_url}" color="blue"><u>{location}</u></a>', 
-                            1
+                    matches = list(re.finditer(pattern, line_with_links, re.IGNORECASE))
+                    # Process matches in reverse order to maintain string positions
+                    for match in reversed(matches):
+                        location = match.group(1).strip()
+                        
+                        # Skip if already processed or too short
+                        if location.lower() in processed_locations or len(location) < 4:
+                            continue
+                            
+                        processed_locations.add(location.lower())
+                        
+                        # Create Google Maps URL
+                        search_query = f"{location}, {destination_city}" if destination_city else location
+                        maps_url = f"https://maps.google.com/?q={urllib.parse.quote(search_query)}"
+                        
+                        # Replace the location with a clickable link
+                        start_pos, end_pos = match.span(1)
+                        line_with_links = (
+                            line_with_links[:start_pos] + 
+                            f'<a href="{maps_url}" color="blue"><u>{location}</u></a>' + 
+                            line_with_links[end_pos:]
                         )
                 
                 story.append(Paragraph(line_with_links, activity_style))
@@ -676,7 +724,7 @@ def generate_template_fallback(trip_request):
         else:
             plan += f"Exploring {dest}\n"
         
-        plan += f"🏨 Accommodation: Budget hotel (${daily_budget * 0.35:.0f}/person)\n"
+        # Skip hotel costs in daily budget - list separately
         
         if day <= len(attractions):
             plan += f"📍 Visit: {attractions[day-1]}\n"
@@ -686,6 +734,12 @@ def generate_template_fallback(trip_request):
         
         plan += f"🚶 Evening: Local exploration\n"
         plan += f"💰 Daily total: ${daily_budget:.0f} per person\n\n"
+    
+    # Add accommodation section separately
+    plan += f"🏨 ACCOMMODATION RECOMMENDATIONS (Budget Separately):\n"
+    plan += f"- Mid-range hotel: ${daily_budget * 0.4:.0f} per person per night\n"
+    plan += f"- Budget hotel: ${daily_budget * 0.25:.0f} per person per night\n"
+    plan += f"- Luxury hotel: ${daily_budget * 0.6:.0f} per person per night\n\n"
     
     plan += f"🚌 Transportation: {transport_info}\n"
     plan += f"💡 Budget Tip: {budget_tip}\n"

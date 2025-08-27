@@ -1,0 +1,697 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Privacy Policy - TripAI{% endblock %}
+
+{% block content %}
+<div class="legal-container">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-10 col-lg-8">
+                <div class="legal-card">
+                    <div class="legal-header">
+                        <h1 class="gradient-text mb-4">
+                            <i class="fas fa-shield-alt me-3"></i>Privacy Policy
+                        </h1>
+                        <p class="text-muted lead">Last updated: January 2025</p>
+                        <div class="legal-notice">
+                            <i class="fas fa-lock me-2"></i>
+                            Your privacy is important to us. This policy explains how we collect, use, and protect your information.
+                        </div>
+                    </div>
+
+                    <div class="legal-content">
+                        <!-- Table of Contents -->
+                        <div class="toc-section">
+                            <h3><i class="fas fa-list me-2"></i>Table of Contents</h3>
+                            <nav class="toc-nav">
+                                <a href="#overview" class="toc-link">1. Overview</a>
+                                <a href="#information-collected" class="toc-link">2. Information We Collect</a>
+                                <a href="#how-we-use" class="toc-link">3. How We Use Information</a>
+                                <a href="#information-sharing" class="toc-link">4. Information Sharing</a>
+                                <a href="#data-security" class="toc-link">5. Data Security</a>
+                                <a href="#cookies" class="toc-link">6. Cookies & Tracking</a>
+                                <a href="#your-rights" class="toc-link">7. Your Privacy Rights</a>
+                                <a href="#data-retention" class="toc-link">8. Data Retention</a>
+                                <a href="#international" class="toc-link">9. International Transfers</a>
+                                <a href="#children" class="toc-link">10. Children's Privacy</a>
+                                <a href="#changes" class="toc-link">11. Policy Changes</a>
+                                <a href="#contact" class="toc-link">12. Contact Us</a>
+                            </nav>
+                        </div>
+
+                        <!-- Privacy Sections -->
+                        <section id="overview" class="terms-section">
+                            <h2><i class="fas fa-eye me-2"></i>1. Overview</h2>
+                            <p>TripAI ("we," "our," or "us") respects your privacy and is committed to protecting your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our AI-powered travel planning service.</p>
+                            <div class="highlight-box">
+                                <i class="fas fa-heart text-danger me-2"></i>
+                                <strong>Our Commitment:</strong> We believe privacy is a fundamental right. We minimize data collection, use encryption, and give you control over your information.
+                            </div>
+                        </section>
+
+                        <section id="information-collected" class="terms-section">
+                            <h2><i class="fas fa-database me-2"></i>2. Information We Collect</h2>
+                            
+                            <h3><i class="fas fa-user me-2 text-primary"></i>Personal Information</h3>
+                            <ul class="data-list">
+                                <li><i class="fas fa-envelope text-primary me-2"></i><strong>Account Information:</strong> Email, name, profile picture (if provided)</li>
+                                <li><i class="fas fa-map-marker-alt text-success me-2"></i><strong>Travel Preferences:</strong> Destinations, budget, travel style, interests</li>
+                                <li><i class="fas fa-calendar text-info me-2"></i><strong>Trip Data:</strong> Itineraries, bookings, travel history</li>
+                                <li><i class="fas fa-comments text-warning me-2"></i><strong>Communication:</strong> Messages with our support team and AI chatbot</li>
+                            </ul>
+
+                            <h3><i class="fas fa-cog me-2 text-secondary"></i>Technical Information</h3>
+                            <ul class="data-list">
+                                <li><i class="fas fa-globe text-info me-2"></i><strong>Usage Data:</strong> Pages visited, features used, time spent</li>
+                                <li><i class="fas fa-mobile-alt text-primary me-2"></i><strong>Device Information:</strong> Browser type, operating system, IP address</li>
+                                <li><i class="fas fa-chart-line text-success me-2"></i><strong>Analytics:</strong> App performance, error logs, usage patterns</li>
+                            </ul>
+
+                            <h3><i class="fab fa-google me-2 text-danger"></i>Third-Party Information</h3>
+                            <p>When you sign in with Google or other social providers:</p>
+                            <ul class="data-list">
+                                <li><i class="fas fa-id-card text-primary me-2"></i>Basic profile information (name, email, profile picture)</li>
+                                <li><i class="fas fa-key text-warning me-2"></i>OAuth tokens (encrypted and secured)</li>
+                            </ul>
+                        </section>
+
+                        <section id="how-we-use" class="terms-section">
+                            <h2><i class="fas fa-tasks me-2"></i>3. How We Use Your Information</h2>
+                            
+                            <div class="usage-grid">
+                                <div class="usage-card service-provision">
+                                    <h4><i class="fas fa-magic text-primary me-2"></i>Service Provision</h4>
+                                    <ul>
+                                        <li>Generate personalized travel recommendations</li>
+                                        <li>Create custom itineraries and PDF guides</li>
+                                        <li>Provide AI-powered travel assistance</li>
+                                        <li>Process and fulfill your travel requests</li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="usage-card improvement">
+                                    <h4><i class="fas fa-arrow-up text-success me-2"></i>Service Improvement</h4>
+                                    <ul>
+                                        <li>Analyze usage patterns and preferences</li>
+                                        <li>Improve AI accuracy and recommendations</li>
+                                        <li>Develop new features and enhancements</li>
+                                        <li>Fix bugs and optimize performance</li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="usage-card communication">
+                                    <h4><i class="fas fa-envelope text-info me-2"></i>Communication</h4>
+                                    <ul>
+                                        <li>Send important service updates</li>
+                                        <li>Provide customer support</li>
+                                        <li>Respond to your inquiries</li>
+                                        <li>Send promotional content (opt-in only)</li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="usage-card legal">
+                                    <h4><i class="fas fa-balance-scale text-warning me-2"></i>Legal Compliance</h4>
+                                    <ul>
+                                        <li>Comply with applicable laws</li>
+                                        <li>Protect against fraud and abuse</li>
+                                        <li>Enforce our terms of service</li>
+                                        <li>Respond to legal requests</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section id="information-sharing" class="terms-section">
+                            <h2><i class="fas fa-share-alt me-2"></i>4. Information Sharing</h2>
+                            
+                            <div class="sharing-policy">
+                                <div class="no-selling">
+                                    <h4><i class="fas fa-ban text-danger me-2"></i>We Never Sell Your Data</h4>
+                                    <p>We do not sell, rent, or trade your personal information to third parties for commercial purposes.</p>
+                                </div>
+                                
+                                <h4>We may share information only in these limited circumstances:</h4>
+                                <ul class="sharing-list">
+                                    <li>
+                                        <i class="fas fa-cloud text-primary me-2"></i>
+                                        <strong>Service Providers:</strong> Trusted partners who help us operate our service (hosting, analytics, support)
+                                    </li>
+                                    <li>
+                                        <i class="fas fa-gavel text-warning me-2"></i>
+                                        <strong>Legal Requirements:</strong> When required by law, court order, or to protect our rights
+                                    </li>
+                                    <li>
+                                        <i class="fas fa-shield-alt text-danger me-2"></i>
+                                        <strong>Safety & Security:</strong> To prevent fraud, abuse, or protect user safety
+                                    </li>
+                                    <li>
+                                        <i class="fas fa-handshake text-success me-2"></i>
+                                        <strong>Business Transfers:</strong> If we're acquired or merged (with notice to you)
+                                    </li>
+                                    <li>
+                                        <i class="fas fa-check-circle text-info me-2"></i>
+                                        <strong>With Your Consent:</strong> When you explicitly agree to sharing
+                                    </li>
+                                </ul>
+                            </div>
+                        </section>
+
+                        <section id="data-security" class="terms-section">
+                            <h2><i class="fas fa-lock me-2"></i>5. Data Security</h2>
+                            
+                            <div class="security-measures">
+                                <h4><i class="fas fa-shield-alt text-success me-2"></i>Our Security Measures</h4>
+                                <div class="security-grid">
+                                    <div class="security-item">
+                                        <i class="fas fa-key text-primary"></i>
+                                        <h5>Encryption</h5>
+                                        <p>Data encrypted in transit (HTTPS/TLS) and at rest (AES-256)</p>
+                                    </div>
+                                    <div class="security-item">
+                                        <i class="fas fa-user-shield text-success"></i>
+                                        <h5>Access Control</h5>
+                                        <p>Strict access controls and multi-factor authentication</p>
+                                    </div>
+                                    <div class="security-item">
+                                        <i class="fas fa-eye text-info"></i>
+                                        <h5>Monitoring</h5>
+                                        <p>24/7 security monitoring and incident response</p>
+                                    </div>
+                                    <div class="security-item">
+                                        <i class="fas fa-sync text-warning"></i>
+                                        <h5>Updates</h5>
+                                        <p>Regular security audits and system updates</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="security-disclaimer">
+                                <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                                <strong>Important:</strong> While we implement strong security measures, no method of transmission over the internet is 100% secure. We cannot guarantee absolute security.
+                            </div>
+                        </section>
+
+                        <section id="cookies" class="terms-section">
+                            <h2><i class="fas fa-cookie-bite me-2"></i>6. Cookies & Tracking</h2>
+                            
+                            <div class="cookie-info">
+                                <h4>We use cookies and similar technologies for:</h4>
+                                <div class="cookie-types">
+                                    <div class="cookie-type essential">
+                                        <h5><i class="fas fa-cog text-danger me-2"></i>Essential Cookies</h5>
+                                        <p>Required for basic site functionality (authentication, security)</p>
+                                        <span class="badge bg-danger">Required</span>
+                                    </div>
+                                    <div class="cookie-type analytics">
+                                        <h5><i class="fas fa-chart-bar text-info me-2"></i>Analytics Cookies</h5>
+                                        <p>Help us understand how you use our service</p>
+                                        <span class="badge bg-info">Optional</span>
+                                    </div>
+                                    <div class="cookie-type preferences">
+                                        <h5><i class="fas fa-sliders-h text-success me-2"></i>Preference Cookies</h5>
+                                        <p>Remember your settings and preferences</p>
+                                        <span class="badge bg-success">Optional</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="cookie-control">
+                                    <p><strong>Your Control:</strong> You can manage cookie preferences in your browser settings or through our cookie consent banner.</p>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section id="your-rights" class="terms-section">
+                            <h2><i class="fas fa-user-check me-2"></i>7. Your Privacy Rights</h2>
+                            
+                            <div class="rights-grid">
+                                <div class="right-item">
+                                    <i class="fas fa-eye text-primary"></i>
+                                    <h5>Access</h5>
+                                    <p>Request a copy of your personal data</p>
+                                </div>
+                                <div class="right-item">
+                                    <i class="fas fa-edit text-success"></i>
+                                    <h5>Correction</h5>
+                                    <p>Update or correct inaccurate information</p>
+                                </div>
+                                <div class="right-item">
+                                    <i class="fas fa-trash text-danger"></i>
+                                    <h5>Deletion</h5>
+                                    <p>Request deletion of your data</p>
+                                </div>
+                                <div class="right-item">
+                                    <i class="fas fa-download text-info"></i>
+                                    <h5>Portability</h5>
+                                    <p>Export your data in a standard format</p>
+                                </div>
+                                <div class="right-item">
+                                    <i class="fas fa-pause text-warning"></i>
+                                    <h5>Restriction</h5>
+                                    <p>Limit how we process your data</p>
+                                </div>
+                                <div class="right-item">
+                                    <i class="fas fa-times-circle text-secondary"></i>
+                                    <h5>Objection</h5>
+                                    <p>Object to certain types of processing</p>
+                                </div>
+                            </div>
+                            
+                            <div class="rights-notice">
+                                <p><strong>How to Exercise Your Rights:</strong> Contact us at <a href="mailto:privacy@tripai.com" class="privacy-email">privacy@tripai.com</a> or use your account settings. We'll respond within 30 days.</p>
+                            </div>
+                        </section>
+
+                        <section id="data-retention" class="terms-section">
+                            <h2><i class="fas fa-clock me-2"></i>8. Data Retention</h2>
+                            
+                            <div class="retention-policy">
+                                <h4>We retain your information for different periods:</h4>
+                                <ul class="retention-list">
+                                    <li>
+                                        <i class="fas fa-user text-primary me-2"></i>
+                                        <strong>Account Data:</strong> Until you delete your account + 90 days
+                                    </li>
+                                    <li>
+                                        <i class="fas fa-map text-success me-2"></i>
+                                        <strong>Trip Data:</strong> 7 years for travel records and preferences
+                                    </li>
+                                    <li>
+                                        <i class="fas fa-chart-line text-info me-2"></i>
+                                        <strong>Usage Analytics:</strong> 2 years in aggregated, anonymized form
+                                    </li>
+                                    <li>
+                                        <i class="fas fa-gavel text-warning me-2"></i>
+                                        <strong>Legal Records:</strong> As required by applicable law
+                                    </li>
+                                </ul>
+                                
+                                <div class="retention-note">
+                                    <i class="fas fa-info-circle text-info me-2"></i>
+                                    <strong>Note:</strong> Some information may be retained longer if required for legal compliance, dispute resolution, or legitimate business purposes.
+                                </div>
+                            </div>
+                        </section>
+
+                        <section id="international" class="terms-section">
+                            <h2><i class="fas fa-globe me-2"></i>9. International Data Transfers</h2>
+                            
+                            <div class="transfer-info">
+                                <p>TripAI operates globally and may transfer your information to countries outside your residence:</p>
+                                <ul>
+                                    <li><strong>Legal Basis:</strong> We rely on adequacy decisions, standard contractual clauses, or your consent</li>
+                                    <li><strong>Safeguards:</strong> We implement appropriate safeguards to protect your data during transfers</li>
+                                    <li><strong>Your Rights:</strong> You can request information about transfers and object to them</li>
+                                </ul>
+                                
+                                <div class="transfer-regions">
+                                    <h5><i class="fas fa-server text-primary me-2"></i>Primary Data Centers:</h5>
+                                    <p>United States (AWS/Google Cloud), European Union (GDPR compliant)</p>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section id="children" class="terms-section">
+                            <h2><i class="fas fa-child me-2"></i>10. Children's Privacy</h2>
+                            
+                            <div class="children-policy">
+                                <div class="age-restriction">
+                                    <h4><i class="fas fa-birthday-cake text-warning me-2"></i>Age Restrictions</h4>
+                                    <p>TripAI is not intended for children under 13 years of age. We do not knowingly collect personal information from children under 13.</p>
+                                </div>
+                                
+                                <div class="parent-notice">
+                                    <h4><i class="fas fa-users text-info me-2"></i>For Parents</h4>
+                                    <p>If you believe we have collected information from a child under 13, please contact us immediately at <a href="mailto:privacy@tripai.com" class="privacy-email">privacy@tripai.com</a> and we will delete such information.</p>
+                                </div>
+                                
+                                <div class="teen-notice">
+                                    <h4><i class="fas fa-user-graduate text-success me-2"></i>Teens (13-17)</h4>
+                                    <p>Users between 13-17 should have parental permission before creating an account or providing personal information.</p>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section id="changes" class="terms-section">
+                            <h2><i class="fas fa-edit me-2"></i>11. Policy Changes</h2>
+                            
+                            <div class="changes-policy">
+                                <p>We may update this Privacy Policy from time to time. When we make changes:</p>
+                                <ul>
+                                    <li><strong>Notice:</strong> We'll notify you via email, in-app notification, or website banner</li>
+                                    <li><strong>Review Period:</strong> You'll have at least 30 days to review significant changes</li>
+                                    <li><strong>Continued Use:</strong> Continued use after changes means you accept the updated policy</li>
+                                    <li><strong>Version Control:</strong> We maintain previous versions for your reference</li>
+                                </ul>
+                                
+                                <div class="version-info">
+                                    <p><strong>Current Version:</strong> 2.0 (January 2025) | <strong>Previous Update:</strong> June 2024</p>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section id="contact" class="terms-section">
+                            <h2><i class="fas fa-envelope me-2"></i>12. Contact Us</h2>
+                            
+                            <div class="contact-info">
+                                <p>For questions about this Privacy Policy or our privacy practices:</p>
+                                <div class="contact-methods">
+                                    <div class="contact-item priority">
+                                        <i class="fas fa-envelope text-primary me-2"></i>
+                                        <div>
+                                            <strong>Privacy Team:</strong> <a href="mailto:privacy@tripai.com" class="privacy-email">privacy@tripai.com</a>
+                                            <br><small class="text-muted">Response within 48 hours</small>
+                                        </div>
+                                    </div>
+                                    <div class="contact-item">
+                                        <i class="fas fa-phone text-success me-2"></i>
+                                        <div>
+                                            <strong>Phone:</strong> +1 (555) 123-4567
+                                            <br><small class="text-muted">Mon-Fri, 9 AM - 6 PM PST</small>
+                                        </div>
+                                    </div>
+                                    <div class="contact-item">
+                                        <i class="fas fa-map-marker-alt text-info me-2"></i>
+                                        <div>
+                                            <strong>Mail:</strong> TripAI Privacy Officer<br>
+                                            123 Tech Street<br>
+                                            San Francisco, CA 94105
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="dpo-info">
+                                    <h5><i class="fas fa-user-shield text-primary me-2"></i>Data Protection Officer (EU/UK)</h5>
+                                    <p>Email: <a href="mailto:dpo@tripai.com" class="privacy-email">dpo@tripai.com</a></p>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Effective Date -->
+                        <div class="effective-date">
+                            <p class="text-center text-muted">
+                                <i class="fas fa-calendar-alt me-2"></i>
+                                This Privacy Policy is effective as of January 1, 2025
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="legal-actions">
+                        <div class="d-flex gap-3 justify-content-center">
+                            <a href="{% url 'terms_of_service' %}" class="btn btn-outline-primary">
+                                <i class="fas fa-file-contract me-2"></i>Terms of Service
+                            </a>
+                            <a href="{% url 'account_signup' %}" class="btn btn-modern">
+                                <i class="fas fa-user-plus me-2"></i>Create Account
+                            </a>
+                            <a href="/" class="btn btn-outline-secondary">
+                                <i class="fas fa-home me-2"></i>Back to Home
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Additional Privacy Policy Specific Styles */
+.data-list {
+    list-style: none;
+    padding: 0;
+}
+
+.data-list li {
+    padding: 8px 0;
+    display: flex;
+    align-items: flex-start;
+}
+
+.usage-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin: 30px 0;
+}
+
+.usage-card {
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+}
+
+.usage-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.usage-card h4 {
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+}
+
+.usage-card ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.usage-card li {
+    padding: 5px 0;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.sharing-policy .no-selling {
+    background: rgba(40, 167, 69, 0.1);
+    border: 1px solid rgba(40, 167, 69, 0.3);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 20px 0;
+    text-align: center;
+}
+
+.sharing-list {
+    list-style: none;
+    padding: 0;
+}
+
+.sharing-list li {
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: flex-start;
+}
+
+.security-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.security-item {
+    text-align: center;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 10px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.security-item i {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    display: block;
+}
+
+.security-item h5 {
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.security-item p {
+    color: #666;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.security-disclaimer {
+    background: rgba(255, 193, 7, 0.1);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    border-radius: 10px;
+    padding: 15px;
+    margin: 20px 0;
+}
+
+.cookie-types {
+    display: grid;
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.cookie-type {
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 10px;
+    padding: 15px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.cookie-type h5 {
+    margin: 0;
+    color: #333;
+}
+
+.cookie-type p {
+    margin: 5px 0 0 0;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.cookie-control {
+    background: rgba(13, 110, 253, 0.1);
+    border-radius: 10px;
+    padding: 15px;
+    margin: 20px 0;
+}
+
+.rights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 20px;
+    margin: 30px 0;
+}
+
+.right-item {
+    text-align: center;
+    padding: 20px 10px;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 10px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+}
+
+.right-item:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.right-item i {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    display: block;
+}
+
+.right-item h5 {
+    margin-bottom: 8px;
+    color: #333;
+    font-size: 1rem;
+}
+
+.right-item p {
+    margin: 0;
+    color: #666;
+    font-size: 0.85rem;
+}
+
+.rights-notice {
+    background: rgba(102, 126, 234, 0.1);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.privacy-email {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.privacy-email:hover {
+    text-decoration: underline;
+    color: #5a67d8;
+}
+
+.retention-list {
+    list-style: none;
+    padding: 0;
+}
+
+.retention-list li {
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: flex-start;
+}
+
+.retention-note {
+    background: rgba(13, 110, 253, 0.1);
+    border-radius: 10px;
+    padding: 15px;
+    margin: 20px 0;
+}
+
+.transfer-regions {
+    background: rgba(102, 126, 234, 0.1);
+    border-radius: 10px;
+    padding: 15px;
+    margin: 20px 0;
+}
+
+.children-policy > div {
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 15px 0;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.version-info {
+    background: rgba(108, 117, 125, 0.1);
+    border-radius: 8px;
+    padding: 10px 15px;
+    margin: 15px 0;
+    font-size: 0.9rem;
+}
+
+.contact-item.priority {
+    background: rgba(102, 126, 234, 0.1);
+    border: 1px solid rgba(102, 126, 234, 0.2);
+}
+
+.dpo-info {
+    background: rgba(13, 110, 253, 0.1);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+/* Mobile adjustments for privacy policy */
+@media (max-width: 768px) {
+    .usage-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .security-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .rights-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 576px) {
+    .security-grid,
+    .rights-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}

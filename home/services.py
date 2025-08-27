@@ -263,13 +263,14 @@ AVAILABLE LOCATION DATA:
 
 CREATE A COMPREHENSIVE PLAN INCLUDING:
 1. Detailed day-by-day itinerary with specific locations, attractions, and activities
-2. Specific restaurant and hotel recommendations with estimated costs
-3. Transportation details and timing recommendations
-4. Cultural insights and local tips
-5. Hidden gems and local experiences
-6. Accurate cost breakdowns for {trip_request.number_of_travelers} travelers
-7. Practical information (opening hours, best times to visit)
-8. Daily budget summaries
+2. Specific restaurant recommendations with estimated costs (include in budget calculations)
+3. Hotel/accommodation recommendations with estimated costs (DO NOT include in trip budget - list separately as additional information for planning purposes)
+4. Transportation details and timing recommendations
+5. Cultural insights and local tips
+6. Hidden gems and local experiences
+7. Accurate cost breakdowns for {trip_request.number_of_travelers} travelers (excluding accommodation costs)
+8. Daily budget summaries (activities, food, and transportation only)
+9. Separate accommodation section with hotel recommendations and estimated costs
 
 IMPORTANT FORMATTING RULES:
 - NEVER use hashtags (#), asterisks (*), or other special characters for headers or emphasis
@@ -284,11 +285,14 @@ Format example:
 
 🗓️ Day 1: Arrival and First Impressions
 - 🚗 Airport Transfer: Details about transportation options and costs
-- 🏨 Check into [Specific Hotel Name]: Description and cost for {trip_request.number_of_travelers} people
 - 🍽️ Lunch at [Specific Restaurant]: Description and cost estimate
 - 📍 Visit [Specific Attraction]: Detailed description, opening hours, entry fees
-- 💰 Daily total: $XX for {trip_request.number_of_travelers} travelers
+- 💰 Daily total (activities, food, transport): $XX for {trip_request.number_of_travelers} travelers
 - ⏰ Timing Tips: Best times and practical advice
+
+🏨 ACCOMMODATION RECOMMENDATIONS (Budget Separately):
+- [Specific Hotel Name]: Description, amenities, and estimated cost for {trip_request.number_of_travelers} people per night
+- Alternative options with different price ranges
 
 Please provide a rich, detailed itinerary that makes full use of the budget and creates an amazing travel experience.
 """

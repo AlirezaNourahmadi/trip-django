@@ -1,0 +1,146 @@
+{% extends "base/base.html" %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="container">
+        <h1 class="display-4">🌍 Welcome to TripAI</h1>
+        <p class="lead">Your AI-powered travel assistant for personalized trip planning</p>
+        {% if not user.is_authenticated %}
+            <div class="mt-4">
+                <a href="{% url 'account_signup' %}" class="btn btn-modern btn-lg me-3">Get Started</a>
+                <a href="{% url 'account_login' %}" class="btn btn-outline-modern btn-lg">Login</a>
+            </div>
+        {% else %}
+            <div class="mt-4">
+                <a href="{% url 'chatbot' %}" class="btn btn-modern btn-lg me-3">Chat with AI</a>
+                <a href="{% url 'trip_request_create' %}" class="btn btn-outline-modern btn-lg me-3">Plan a Trip</a>
+            </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="py-5">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="gradient-text display-5 fw-bold">✨ Powerful Features</h2>
+            <p class="lead text-muted">Everything you need for the perfect trip</p>
+        </div>
+        <div class="row text-center">
+            <div class="col-md-4 mb-4">
+                <div class="card feature-card h-100">
+                    <div class="card-body">
+                        <div class="feature-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <h5 class="card-title fw-bold">AI Chatbot</h5>
+                        <p class="card-text text-muted">Get instant travel advice and recommendations from our intelligent chatbot assistant powered by GPT-4.</p>
+                        {% if user.is_authenticated %}
+                        <a href="{% url 'chatbot' %}" class="btn btn-modern btn-sm">Try Now</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card feature-card h-100">
+                    <div class="card-body">
+                        <div class="feature-icon">
+                            <i class="fas fa-map-marked-alt"></i>
+                        </div>
+                        <h5 class="card-title fw-bold">Smart Trip Planning</h5>
+                        <p class="card-text text-muted">Create personalized travel itineraries with Google Maps integration, budget optimization, and local insights.</p>
+                        {% if user.is_authenticated %}
+                        <a href="{% url 'trip_request_create' %}" class="btn btn-modern btn-sm">Plan Trip</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card feature-card h-100">
+                    <div class="card-body">
+                        <div class="feature-icon">
+                            <i class="fas fa-file-pdf"></i>
+                        </div>
+                        <h5 class="card-title fw-bold">PDF Itineraries</h5>
+                        <p class="card-text text-muted">Download comprehensive travel guides with photos, maps links, and detailed schedules in beautiful PDF format.</p>
+                        {% if user.is_authenticated %}
+                        <a href="{% url 'profile' %}" class="btn btn-modern btn-sm">View Trips</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Stats Section -->
+<section class="py-5" style="background: rgba(102, 126, 234, 0.05);">
+    <div class="container">
+        <div class="row text-center">
+            <div class="col-md-3 mb-4">
+                <div class="modern-card h-100">
+                    <div class="card-body py-4">
+                        <div class="display-4 gradient-text fw-bold mb-2">🤖</div>
+                        <h5 class="fw-bold">AI-Powered</h5>
+                        <p class="text-muted mb-0">GPT-4 Integration</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="modern-card h-100">
+                    <div class="card-body py-4">
+                        <div class="display-4 gradient-text fw-bold mb-2">🗺️</div>
+                        <h5 class="fw-bold">Google Maps</h5>
+                        <p class="text-muted mb-0">Real Locations & Photos</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="modern-card h-100">
+                    <div class="card-body py-4">
+                        <div class="display-4 gradient-text fw-bold mb-2">📱</div>
+                        <h5 class="fw-bold">Responsive</h5>
+                        <p class="text-muted mb-0">Works on All Devices</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="modern-card h-100">
+                    <div class="card-body py-4">
+                        <div class="display-4 gradient-text fw-bold mb-2">💼</div>
+                        <h5 class="fw-bold">Professional</h5>
+                        <p class="text-muted mb-0">Business & Leisure</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Quick Action Section -->
+{% if user.is_authenticated %}
+<section class="py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="modern-card">
+                    <div class="card-body p-5 text-center">
+                        <div class="row align-items-center">
+                            <div class="col-md-8 text-md-start">
+                                <h3 class="gradient-text fw-bold mb-2">🚀 Ready to start planning?</h3>
+                                <p class="lead text-muted mb-md-0">Get personalized travel recommendations in seconds with our AI-powered assistant</p>
+                            </div>
+                            <div class="col-md-4">
+                                <a href="{% url 'chatbot' %}" class="btn btn-modern btn-lg me-2 mb-2">Chat with AI</a>
+                                <a href="{% url 'trip_request_create' %}" class="btn btn-outline-primary btn-lg mb-2">Plan Trip</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endif %}
+{% endblock %}

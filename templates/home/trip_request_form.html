@@ -1,0 +1,611 @@
+{% extends "base/base.html" %}
+
+{% block extra_css %}
+<style>
+    .form-hero {
+        background: var(--accent-gradient);
+        padding: 4rem 0;
+        color: white;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .form-hero::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><path fill="%23ffffff08" d="M0,300L100,250C200,200,400,100,600,150C800,200,1000,400,1100,450L1200,500V1000H0Z"/></svg>');
+        animation: float 12s ease-in-out infinite;
+    }
+    
+    .form-hero h1 {
+        font-size: 3rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        position: relative;
+        z-index: 2;
+    }
+    
+    .form-hero p {
+        font-size: 1.3rem;
+        opacity: 0.9;
+        position: relative;
+        z-index: 2;
+    }
+    
+    .form-container {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-radius: 20px;
+        box-shadow: var(--card-shadow);
+        margin-top: -3rem;
+        position: relative;
+        z-index: 3;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 3rem;
+    }
+    
+    .form-section {
+        margin-bottom: 2rem;
+    }
+    
+    .form-section h3 {
+        color: #2c3e50;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e9ecef;
+        font-weight: 600;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+        position: relative;
+    }
+    
+    .form-group label {
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+    
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+    }
+    
+    @media (max-width: 768px) {
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .suggestions-container {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background: white;
+        border-radius: 12px;
+        box-shadow: var(--card-shadow);
+        border: 1px solid rgba(0,0,0,0.1);
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    
+    .suggestion-item {
+        padding: 1rem;
+        border-bottom: 1px solid #f8f9fa;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+    
+    .suggestion-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .suggestion-item.active {
+        background: var(--primary-gradient);
+        color: white;
+    }
+    
+    .btn-submit {
+        background: var(--accent-gradient);
+        border: none;
+        color: white;
+        padding: 1rem 3rem;
+        border-radius: 50px;
+        font-weight: 600;
+        font-size: 1.1rem;
+        transition: var(--transition);
+        width: 100%;
+        margin-top: 2rem;
+    }
+    
+    .btn-submit:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 30px rgba(168, 237, 234, 0.4);
+        color: white;
+    }
+    
+    .form-icon {
+        color: var(--primary-gradient);
+        margin-right: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-hero">
+    <div class="container">
+        <h1>🗺️ Plan Your Perfect Trip</h1>
+        <p>Tell us about your dream destination and we'll create a personalized itinerary</p>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="form-container">
+                <form method="POST" enctype="multipart/form-data" id="trip-form">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label for="{{ form.destination.id_for_label }}">{{ form.destination.label }}</label>
+            {{ form.destination }}
+            <div id="destination-suggestions" class="list-group" style="position: absolute; z-index: 1000; width: 100%; display: none;"></div>
+            <small class="form-text text-muted">Start typing to search for destinations</small>
+            {{ form.destination_country }}
+            {{ form.destination_place_id }}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.duration.id_for_label }}">{{ form.duration.label }}</label>
+            {{ form.duration }}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.budget.id_for_label }}">{{ form.budget.label }} <small class="text-muted">(USD)</small></label>
+            <div class="input-group">
+                <span class="input-group-text">$</span>
+                {{ form.budget }}
+                <span class="input-group-text">USD</span>
+            </div>
+            <small class="form-text text-muted">Enter total trip budget. Example: 3,000</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.number_of_travelers.id_for_label }}">{{ form.number_of_travelers.label }}</label>
+            {{ form.number_of_travelers }}
+            <small class="form-text text-muted">Number of people on this trip</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.interests.id_for_label }}">{{ form.interests.label }}</label>
+            {{ form.interests }}
+            <div class="mt-2" id="interests-suggestions">
+                <small class="text-muted d-block mb-1">Popular interests:</small>
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary interest-chip" data-value="History">History</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary interest-chip" data-value="Art">Art</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary interest-chip" data-value="Food">Food</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary interest-chip" data-value="Museums">Museums</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary interest-chip" data-value="Nature">Nature</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary interest-chip" data-value="Hiking">Hiking</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary interest-chip" data-value="Nightlife">Nightlife</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary interest-chip" data-value="Beaches">Beaches</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary interest-chip" data-value="Shopping">Shopping</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.daily_budget.id_for_label }}">{{ form.daily_budget.label }} <small class="text-muted">(USD per person)</small></label>
+            <div class="input-group">
+                <span class="input-group-text">$</span>
+                {{ form.daily_budget }}
+                <span class="input-group-text">USD</span>
+            </div>
+            <small id="daily-budget-hint" class="form-text text-muted">Auto-calculated from total budget, duration, and travelers.</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.transportation_preferences.id_for_label }}">{{ form.transportation_preferences.label }}</label>
+            {{ form.transportation_preferences }}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.experience_style.id_for_label }}">{{ form.experience_style.label }}</label>
+            {{ form.experience_style }}
+            <div class="mt-2" id="experience-suggestions">
+                <small class="text-muted d-block mb-1">Suggested styles:</small>
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary experience-chip" data-value="Relaxing">Relaxing</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary experience-chip" data-value="Adventurous">Adventurous</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary experience-chip" data-value="Family-friendly">Family-friendly</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary experience-chip" data-value="Cultural">Cultural</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary experience-chip" data-value="Luxury">Luxury</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary experience-chip" data-value="Backpacking">Backpacking</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.uploaded_file.id_for_label }}">{{ form.uploaded_file.label }}</label>
+            {{ form.uploaded_file }}
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Create Trip Request</button>
+    </form>
+  </div>
+
+  <style>
+    .form-group {
+        margin-bottom: 1.5rem;
+        position: relative;
+    }
+    
+    .list-group-item {
+        cursor: pointer;
+        padding: 0.75rem;
+        border: 1px solid #dee2e6;
+    }
+    
+    .list-group-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .list-group-item.active {
+        background-color: #007bff;
+        color: white;
+    }
+  </style>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Wait a bit for all elements to be fully rendered
+        setTimeout(() => {
+            const destinationInput = document.getElementById('destination-input');
+            const suggestionsContainer = document.getElementById('destination-suggestions');
+            const countryField = document.getElementById('id_destination_country');
+            const placeIdField = document.getElementById('id_destination_place_id');
+            
+            // Validate that required elements exist
+            if (!destinationInput) {
+                console.error('❌ Destination input field not found!');
+                return;
+            }
+            
+            if (!suggestionsContainer) {
+                console.error('❌ Suggestions container not found!');
+                return;
+            }
+            
+            console.log('✅ Autocomplete initialized successfully');
+            
+            let debounceTimer;
+            let selectedIndex = -1;
+            let suggestions = [];
+        
+        // Debounced search function
+        function debounceSearch(query) {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                if (query.length >= 2) {
+                    searchPlaces(query);
+                } else {
+                    hideSuggestions();
+                }
+            }, 300);
+        }
+        
+        // Search places using our API
+        function searchPlaces(query) {
+            console.log('🔍 Searching for:', query);
+            
+            fetch(`/api/places-autocomplete/?query=${encodeURIComponent(query)}`)
+                .then(response => {
+                    console.log('📡 Response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('📊 API Response:', data);
+                    
+                    if (data.error) {
+                        console.error('❌ API Error:', data.error);
+                        showError(data.error);
+                        return;
+                    }
+                    
+                    suggestions = data.suggestions || [];
+                    console.log('📍 Processed suggestions:', suggestions);
+                    displaySuggestions(suggestions);
+                })
+                .catch(error => {
+                    console.error('❌ Network/Parse Error:', error);
+                    showError('Failed to load suggestions. Please try again.');
+                });
+        }
+        
+        // Display suggestions
+        function displaySuggestions(suggestions) {
+            console.log('🎯 Displaying suggestions:', suggestions);
+            
+            if (!suggestions || suggestions.length === 0) {
+                showError('No destinations found. Try a different search term.');
+                return;
+            }
+            
+            suggestionsContainer.innerHTML = '';
+            selectedIndex = -1;
+            
+            suggestions.forEach((suggestion, index) => {
+                console.log(`📍 Processing suggestion ${index}:`, suggestion);
+                
+                const item = document.createElement('div');
+                item.className = 'list-group-item';
+                
+                // Robust null checks and fallbacks
+                const mainText = (suggestion.main_text && suggestion.main_text !== 'undefined') 
+                    ? suggestion.main_text 
+                    : (suggestion.description && suggestion.description !== 'undefined') 
+                    ? suggestion.description 
+                    : 'Unknown location';
+                    
+                const secondaryText = (suggestion.secondary_text && suggestion.secondary_text !== 'undefined') 
+                    ? suggestion.secondary_text 
+                    : '';
+                
+                console.log(`📝 Displaying: "${mainText}" | "${secondaryText}"`);
+                
+                item.innerHTML = `
+                    <div>
+                        <strong>${escapeHtml(mainText)}</strong>
+                        ${secondaryText ? `<br><small class="text-muted">${escapeHtml(secondaryText)}</small>` : ''}
+                    </div>
+                `;
+                
+                item.addEventListener('click', () => {
+                    selectSuggestion(suggestion);
+                });
+                
+                suggestionsContainer.appendChild(item);
+            });
+            
+            suggestionsContainer.style.display = 'block';
+        }
+        
+        // Show error message
+        function showError(message) {
+            suggestionsContainer.innerHTML = `
+                <div class="list-group-item text-danger">
+                    <small>⚠️ ${message}</small>
+                </div>
+            `;
+            suggestionsContainer.style.display = 'block';
+            
+            // Auto-hide error after 3 seconds
+            setTimeout(() => {
+                hideSuggestions();
+            }, 3000);
+        }
+        
+        // Hide suggestions
+        function hideSuggestions() {
+            suggestionsContainer.style.display = 'none';
+            selectedIndex = -1;
+        }
+        
+        // HTML escape function
+        function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+        
+        // Select a suggestion
+        function selectSuggestion(suggestion) {
+            console.log('✅ Selecting suggestion:', suggestion);
+            
+            // Use the most appropriate value for the input
+            const displayValue = suggestion.description || suggestion.main_text || 'Unknown';
+            const countryValue = suggestion.secondary_text || '';
+            const placeId = suggestion.place_id || '';
+            
+            console.log(`📝 Setting values: destination="${displayValue}", country="${countryValue}", place_id="${placeId}"`);
+            
+            destinationInput.value = displayValue;
+            if (countryField) countryField.value = countryValue;
+            if (placeIdField) placeIdField.value = placeId;
+            
+            hideSuggestions();
+        }
+        
+        // Keyboard navigation
+        function handleKeyNavigation(e) {
+            const items = suggestionsContainer.querySelectorAll('.list-group-item');
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                updateSelection(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, -1);
+                updateSelection(items);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
+                    selectSuggestion(suggestions[selectedIndex]);
+                }
+            } else if (e.key === 'Escape') {
+                hideSuggestions();
+            }
+        }
+        
+        // Update visual selection
+        function updateSelection(items) {
+            items.forEach((item, index) => {
+                if (index === selectedIndex) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        }
+        
+        // Event listeners
+        destinationInput.addEventListener('input', (e) => {
+            debounceSearch(e.target.value.trim());
+        });
+
+        // Currency formatting for Budget field (thousand separators)
+        const budgetInput = document.getElementById('id_budget');
+        const durationInput = document.getElementById('id_duration');
+        const travelersInput = document.getElementById('id_number_of_travelers');
+        const dailyBudgetInput = document.getElementById('id_daily_budget');
+        const dailyBudgetHint = document.getElementById('daily-budget-hint');
+
+        function parseNumber(val) {
+            if (!val) return 0;
+            // remove commas and currency chars
+            return parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
+        }
+        function formatWithCommas(n, decimals=0) {
+            const parts = Number(n).toFixed(decimals).split('.');
+            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            return parts.join('.');
+        }
+        function updateDailyBudgetHint() {
+            const total = parseNumber(budgetInput.value);
+            const days = parseNumber(durationInput.value);
+            const people = parseNumber(travelersInput.value);
+            if (total > 0 && days > 0 && people > 0) {
+                const perPersonPerDay = total / days / people;
+                dailyBudgetInput.value = formatWithCommas(perPersonPerDay, 2);
+                dailyBudgetHint.textContent = `≈ $${formatWithCommas(perPersonPerDay, 2)} USD per person per day (from $${formatWithCommas(total)} / ${days} days / ${people} travelers)`;
+            } else {
+                dailyBudgetInput.value = '';
+                dailyBudgetHint.textContent = 'Auto-calculated from total budget, duration, and travelers.';
+            }
+        }
+        function onBudgetBlur() {
+            // format with commas on blur
+            const val = parseNumber(budgetInput.value);
+            if (val > 0) budgetInput.value = formatWithCommas(val);
+            updateDailyBudgetHint();
+        }
+        function onBudgetInput() {
+            // don't constantly reformat during typing, just update hint
+            updateDailyBudgetHint();
+        }
+
+        budgetInput.addEventListener('blur', onBudgetBlur);
+        budgetInput.addEventListener('input', onBudgetInput);
+        durationInput.addEventListener('input', updateDailyBudgetHint);
+        travelersInput.addEventListener('input', updateDailyBudgetHint);
+        // Initialize on load
+        updateDailyBudgetHint();
+
+        // Suggestion chips logic for Interests (textarea)
+        const interestsField = document.getElementById('id_interests');
+        document.querySelectorAll('.interest-chip').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const val = btn.getAttribute('data-value');
+                let current = (interestsField.value || '').trim();
+                const values = current ? current.split(',').map(v => v.trim()).filter(Boolean) : [];
+                if (!values.includes(val)) {
+                    values.push(val);
+                    interestsField.value = values.join(', ');
+                }
+                interestsField.focus();
+            });
+        });
+
+        // Suggestion chips logic for Experience Style (text)
+        const experienceField = document.getElementById('id_experience_style');
+        document.querySelectorAll('.experience-chip').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const val = btn.getAttribute('data-value');
+                if (!experienceField.value) {
+                    experienceField.value = val;
+                } else {
+                    // toggle if matches or append if different (comma separated)
+                    const parts = experienceField.value.split(',').map(v => v.trim()).filter(Boolean);
+                    if (parts.includes(val)) {
+                        experienceField.value = parts.filter(p => p !== val).join(', ');
+                    } else {
+                        parts.push(val);
+                        experienceField.value = parts.join(', ');
+                    }
+                }
+                experienceField.focus();
+            });
+        });
+        
+        destinationInput.addEventListener('keydown', handleKeyNavigation);
+        
+        destinationInput.addEventListener('focus', () => {
+            if (destinationInput.value.trim().length >= 2) {
+                searchPlaces(destinationInput.value.trim());
+            }
+        });
+        
+        // Hide suggestions when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!destinationInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+                hideSuggestions();
+            }
+        });
+        
+        // Form validation and sanitize currency fields
+        document.getElementById('trip-form').addEventListener('submit', (e) => {
+            if (!destinationInput.value.trim()) {
+                e.preventDefault();
+                alert('Please select a destination.');
+                destinationInput.focus();
+                return;
+            }
+            // Budget required check before sanitizing
+            if (!budgetInput || String(budgetInput.value).trim() === '') {
+                e.preventDefault();
+                alert('Please enter your total trip budget (USD).');
+                if (budgetInput) budgetInput.focus();
+                return;
+            }
+            // sanitize currency inputs before submit (remove commas and symbols)
+            if (budgetInput) {
+                let b = parseNumber(budgetInput.value);
+                if (isNaN(b)) {
+                    e.preventDefault();
+                    alert('Budget must be a number in USD.');
+                    budgetInput.focus();
+                    return;
+                }
+                if (b < 0) b = 0;
+                budgetInput.value = b;
+            }
+            if (dailyBudgetInput) {
+                let d = parseNumber(dailyBudgetInput.value);
+                if (isNaN(d)) d = 0;
+                if (d < 0) d = 0;
+                dailyBudgetInput.value = d;
+            }
+        });
+        
+        }, 100); // Close setTimeout
+    });
+  </script>
+{% endblock %}

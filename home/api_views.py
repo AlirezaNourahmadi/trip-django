@@ -1,21 +1,77 @@
+"""
+DRF API Views for TripAI Application
+
+This module contains all Django REST Framework API endpoints for the TripAI application.
+All views follow DRF best practices with proper authentication, throttling, and caching.
+
+NOTE FOR DRF/JWT EXPERT:
+=====================
+This file contains the main DRF API implementation. Key architectural decisions:
+
+1. AUTHENTICATION:
+   - Currently using Token Authentication (can migrate to JWT)
+   - Permission classes configured per view for granular access control
+   - Ready for JWT migration (see settings.py for JWT configuration)
+
+2. THROTTLING:
+   - UserRateThrottle for authenticated requests
+   - AnonRateThrottle for anonymous requests (configured in settings)
+   - Custom throttle rates per API endpoint
+
+3. CACHING STRATEGY:
+   - Django cache framework integration
+   - Cache keys with intelligent naming
+   - TTL (Time To Live) optimized per endpoint type
+
+4. SERIALIZATION:
+   - Input validation using DRF serializers
+   - Response data validation
+   - Custom field validation and error handling
+
+5. ERROR HANDLING:
+   - Structured error responses
+   - Logging integration for debugging
+   - HTTP status codes following REST conventions
+
+MIGRATION TO JWT:
+================
+To migrate to JWT authentication:
+1. Install djangorestframework-simplejwt
+2. Update settings.py (JWT configuration already prepared)
+3. Replace TokenAuthentication with JWTAuthentication in DEFAULT_AUTHENTICATION_CLASSES
+4. Update client-side to use Bearer tokens instead of Token auth
+5. Implement JWT refresh token handling
+
+API VERSIONING:
+==============
+For API versioning, consider:
+- URL path versioning: /api/v1/endpoint/
+- Header-based versioning: Accept: application/vnd.api+json; version=1.0
+- Parameter-based versioning: ?version=1.0
+"""
+
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.throttling import UserRateThrottle
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
 from django.core.cache import cache
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
+from django.conf import settings
 import logging
 import json
 
+# Import models and serializers
 from .models import TripPlanRequest, GeneratedPlan
 from .serializers import (
     LocationDetailsSerializer, AutocompleteResponseSerializer,
-    TripStatusSerializer, PDFGenerationSerializer
+    TripStatusSerializer, PDFGenerationSerializer,
+    CostUsageSerializer, CostRecommendationSerializer  # Additional serializers
 )
 
+# Configure logger for this module
 logger = logging.getLogger(__name__)
 
 

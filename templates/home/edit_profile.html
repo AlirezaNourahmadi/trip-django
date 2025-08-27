@@ -1,0 +1,457 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}Edit Profile - TripPlanner{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-edit-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .profile-header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        color: white;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .profile-picture-section {
+        position: relative;
+        display: inline-block;
+        margin-bottom: 15px;
+    }
+
+    .profile-picture-current {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid white;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+
+    .completion-badge {
+        background: rgba(255,255,255,0.2);
+        padding: 8px 16px;
+        border-radius: 25px;
+        display: inline-block;
+        margin-top: 10px;
+    }
+
+    .nav-tabs {
+        border: none;
+        margin-bottom: 30px;
+    }
+
+    .nav-tabs .nav-link {
+        border: none;
+        border-radius: 25px;
+        margin-right: 10px;
+        padding: 12px 24px;
+        background: #f8f9fa;
+        color: #6c757d;
+        transition: all 0.3s ease;
+    }
+
+    .nav-tabs .nav-link:hover {
+        background: #e9ecef;
+        color: #495057;
+    }
+
+    .nav-tabs .nav-link.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .tab-content {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 8px;
+    }
+
+    .form-control {
+        border-radius: 10px;
+        border: 2px solid #e9ecef;
+        padding: 12px 16px;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 25px;
+        padding: 12px 30px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-danger {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+        border: none;
+        border-radius: 25px;
+        padding: 8px 20px;
+        font-weight: 600;
+    }
+
+    .btn-secondary {
+        background: #6c757d;
+        border: none;
+        border-radius: 25px;
+        padding: 8px 20px;
+    }
+
+    .picture-controls {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin-top: 15px;
+    }
+
+    .form-text {
+        color: #6c757d;
+        font-size: 0.875rem;
+        margin-top: 5px;
+    }
+
+    .alert {
+        border-radius: 10px;
+        border: none;
+        margin-bottom: 20px;
+    }
+
+    .travel-preferences-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+    }
+
+    @media (max-width: 768px) {
+        .profile-edit-container {
+            padding: 10px;
+        }
+
+        .nav-tabs .nav-link {
+            padding: 10px 16px;
+            margin-right: 5px;
+        }
+
+        .tab-content {
+            padding: 20px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="profile-edit-container">
+        <!-- Profile Header -->
+        <div class="profile-header">
+            <div class="profile-picture-section">
+                <img src="{{ user.get_profile_picture_url }}" 
+                     alt="Profile Picture" 
+                     class="profile-picture-current">
+            </div>
+            <h2>{{ user.get_display_name }}</h2>
+            <p class="completion-badge">
+                Profile {{ profile_completion }}% Complete
+            </p>
+        </div>
+
+        <!-- Display Messages -->
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <!-- Navigation Tabs -->
+        <ul class="nav nav-tabs" id="profileTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="personal-tab" data-bs-toggle="tab" 
+                        data-bs-target="#personal" type="button" role="tab">
+                    <i class="fas fa-user me-2"></i>Personal Info
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="picture-tab" data-bs-toggle="tab" 
+                        data-bs-target="#picture" type="button" role="tab">
+                    <i class="fas fa-camera me-2"></i>Profile Picture
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="travel-tab" data-bs-toggle="tab" 
+                        data-bs-target="#travel" type="button" role="tab">
+                    <i class="fas fa-plane me-2"></i>Travel Preferences
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="password-tab" data-bs-toggle="tab" 
+                        data-bs-target="#password" type="button" role="tab">
+                    <i class="fas fa-lock me-2"></i>Password
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="profileTabContent">
+            <!-- Personal Information Tab -->
+            <div class="tab-pane fade show active" id="personal" role="tabpanel">
+                <h4><i class="fas fa-user me-2"></i>Personal Information</h4>
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <input type="hidden" name="form_type" value="personal_info">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">{{ personal_form.first_name.label }}</label>
+                                {{ personal_form.first_name }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">{{ personal_form.last_name.label }}</label>
+                                {{ personal_form.last_name }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">{{ personal_form.email.label }}</label>
+                        {{ personal_form.email }}
+                        <div class="form-text">Your email address will be kept private</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">{{ personal_form.bio.label }}</label>
+                        {{ personal_form.bio }}
+                        <div class="form-text">Tell others about yourself and your travel experiences</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">{{ personal_form.phone_number.label }}</label>
+                                {{ personal_form.phone_number }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">{{ personal_form.date_of_birth.label }}</label>
+                                {{ personal_form.date_of_birth }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">{{ personal_form.location.label }}</label>
+                                {{ personal_form.location }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">{{ personal_form.website.label }}</label>
+                                {{ personal_form.website }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Save Personal Information
+                    </button>
+                </form>
+            </div>
+
+            <!-- Profile Picture Tab -->
+            <div class="tab-pane fade" id="picture" role="tabpanel">
+                <h4><i class="fas fa-camera me-2"></i>Profile Picture</h4>
+                
+                <div class="text-center mb-4">
+                    <img src="{{ user.get_profile_picture_url }}" 
+                         alt="Current Profile Picture" 
+                         class="profile-picture-current" 
+                         style="width: 150px; height: 150px;">
+                </div>
+
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <input type="hidden" name="form_type" value="profile_picture">
+                    
+                    <div class="form-group">
+                        <label class="form-label">{{ picture_form.profile_picture.label }}</label>
+                        {{ picture_form.profile_picture }}
+                        <div class="form-text">Choose a new profile picture (max 5MB, JPG/PNG)</div>
+                    </div>
+
+                    <div class="picture-controls">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload me-2"></i>Upload New Picture
+                        </button>
+                        
+                        {% if user.profile_picture %}
+                        <form method="post" action="{% url 'remove_profile_picture' %}" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger"
+                                    onclick="return confirm('Are you sure you want to remove your profile picture?')">
+                                <i class="fas fa-trash me-2"></i>Remove Picture
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+
+            <!-- Travel Preferences Tab -->
+            <div class="tab-pane fade" id="travel" role="tabpanel">
+                <h4><i class="fas fa-plane me-2"></i>Travel Preferences</h4>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="form_type" value="travel_preferences">
+                    
+                    <div class="travel-preferences-grid">
+                        <div class="form-group">
+                            <label class="form-label">{{ travel_form.preferred_budget_range.label }}</label>
+                            {{ travel_form.preferred_budget_range }}
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">{{ travel_form.preferred_travel_style.label }}</label>
+                            {{ travel_form.preferred_travel_style }}
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">{{ travel_form.preferred_accommodations.label }}</label>
+                            {{ travel_form.preferred_accommodations }}
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">{{ travel_form.preferred_transportation.label }}</label>
+                            {{ travel_form.preferred_transportation }}
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">{{ travel_form.travel_interests.label }}</label>
+                        {{ travel_form.travel_interests }}
+                        <div class="form-text">What activities and experiences do you enjoy most?</div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Save Travel Preferences
+                    </button>
+                </form>
+            </div>
+
+            <!-- Password Change Tab -->
+            <div class="tab-pane fade" id="password" role="tabpanel">
+                <h4><i class="fas fa-lock me-2"></i>Change Password</h4>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="form_type" value="change_password">
+                    
+                    <div class="form-group">
+                        <label class="form-label">{{ password_form.old_password.label }}</label>
+                        {{ password_form.old_password }}
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">{{ password_form.new_password1.label }}</label>
+                        {{ password_form.new_password1 }}
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">{{ password_form.new_password2.label }}</label>
+                        {{ password_form.new_password2 }}
+                        <div class="form-text">Enter the same password as before, for verification</div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-key me-2"></i>Change Password
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Back to Profile Link -->
+        <div class="text-center mt-4">
+            <a href="{% url 'profile' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Profile
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Handle tab switching
+    document.addEventListener('DOMContentLoaded', function() {
+        // Auto-focus on form fields when tabs are shown
+        const tabTriggerList = [].slice.call(document.querySelectorAll('#profileTabs button[data-bs-toggle="tab"]'));
+        tabTriggerList.forEach(function (tabTrigger) {
+            tabTrigger.addEventListener('shown.bs.tab', function (event) {
+                // Find first input in the active tab and focus on it
+                const target = event.target.getAttribute('data-bs-target');
+                const firstInput = document.querySelector(target + ' input[type="text"], ' + target + ' input[type="email"], ' + target + ' textarea');
+                if (firstInput) {
+                    setTimeout(() => firstInput.focus(), 100);
+                }
+            });
+        });
+
+        // Preview profile picture before upload
+        const fileInput = document.querySelector('input[type="file"]');
+        if (fileInput) {
+            fileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const imgs = document.querySelectorAll('.profile-picture-current');
+                        imgs.forEach(img => {
+                            img.src = e.target.result;
+                        });
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

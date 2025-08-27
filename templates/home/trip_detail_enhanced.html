@@ -1,0 +1,456 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}Trip Plan - {{ trip_request.destination }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .location-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+        overflow: hidden;
+        transition: transform 0.2s ease-in-out;
+    }
+    
+    .location-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    }
+    
+    .location-photos {
+        display: flex;
+        overflow-x: auto;
+        gap: 10px;
+        padding: 15px;
+        background: #f8f9fa;
+    }
+    
+    .location-photo {
+        flex: 0 0 auto;
+        width: 200px;
+        height: 150px;
+        border-radius: 8px;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .location-photo img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.3s ease;
+    }
+    
+    .location-photo:hover img {
+        transform: scale(1.05);
+    }
+    
+    .location-content {
+        padding: 20px;
+    }
+    
+    .location-name {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .location-rating {
+        background: #ff9500;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 15px;
+        font-size: 0.85rem;
+        font-weight: bold;
+    }
+    
+    .location-description {
+        color: #666;
+        line-height: 1.6;
+        margin-bottom: 15px;
+    }
+    
+    .location-info {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        font-size: 0.9rem;
+        color: #777;
+    }
+    
+    .info-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    
+    .maps-link {
+        display: inline-block;
+        background: #4285f4;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        text-decoration: none;
+        font-weight: 500;
+        margin-top: 10px;
+        transition: background 0.2s;
+    }
+    
+    .maps-link:hover {
+        background: #3367d6;
+        text-decoration: none;
+        color: white;
+    }
+    
+    .trip-overview {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+    }
+    
+    .day-section {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+        margin-bottom: 25px;
+        overflow: hidden;
+    }
+    
+    .day-header {
+        background: #34495e;
+        color: white;
+        padding: 15px 20px;
+        font-size: 1.3rem;
+        font-weight: bold;
+    }
+    
+    .day-content {
+        padding: 20px;
+    }
+    
+    .no-photos {
+        background: #f1f3f4;
+        color: #666;
+        padding: 15px;
+        text-align: center;
+        font-style: italic;
+        margin: 10px 0;
+        border-radius: 8px;
+    }
+    
+    .loading-photos {
+        text-align: center;
+        padding: 20px;
+        color: #666;
+    }
+    
+    .photo-attribution {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(transparent, rgba(0,0,0,0.7));
+        color: white;
+        padding: 10px 8px 5px;
+        font-size: 0.7rem;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<div class="container mt-4">
+    <!-- Trip Overview -->
+    <div class="trip-overview">
+        <h1>🌍 Your Trip to {{ trip_request.destination }}</h1>
+        <div class="row">
+            <div class="col-md-3">
+                <strong>Duration:</strong> {{ trip_request.duration }} days
+            </div>
+            <div class="col-md-3">
+                <strong>Travelers:</strong> {{ trip_request.number_of_travelers }}
+            </div>
+            <div class="col-md-3">
+                <strong>Budget:</strong> ${{ trip_request.budget }}
+            </div>
+            <div class="col-md-3">
+                <strong>Daily Budget:</strong> ${{ trip_request.daily_budget|default:"Not specified" }}
+            </div>
+        </div>
+        {% if trip_request.interests %}
+        <div class="mt-3">
+            <strong>Interests:</strong> {{ trip_request.interests }}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Trip Plan Content -->
+    {% if plan %}
+    <div class="trip-plan-content">
+        <div id="enhanced-content">
+            {{ plan.content|linebreaks }}
+        </div>
+        
+        <!-- Location Photos Section -->
+        <div id="location-photos-section" class="mt-4">
+            <h3>📸 Explore Your Destinations</h3>
+            <div id="location-photos-container">
+                <div class="loading-photos">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="sr-only">Loading photos...</span>
+                    </div>
+                    <p>Loading location photos...</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Download PDF Section -->
+        <div class="text-center mt-4">
+            <div class="card border-0 shadow-sm" style="max-width: 400px; margin: 0 auto;">
+                <div class="card-body p-4">
+                    {% if plan.pdf_file %}
+                        <div class="mb-3">
+                            <div class="text-success mb-2">
+                                <i class="fas fa-check-circle fa-2x"></i>
+                            </div>
+                            <h5 class="text-success mb-3">📄 PDF Ready!</h5>
+                            <p class="text-muted mb-3">Your beautifully formatted trip itinerary is ready to download.</p>
+                        </div>
+                        <a href="{{ plan.pdf_file.url }}" class="btn btn-success btn-lg w-100 mb-2" target="_blank">
+                            <i class="fas fa-download me-2"></i>Download PDF Itinerary
+                        </a>
+                        <small class="text-muted">Clean formatting • Location links • Travel-friendly</small>
+                    {% else %}
+                        <div class="mb-3">
+                            <div class="text-info mb-2">
+                                <div class="spinner-border text-info" role="status" style="width: 3rem; height: 3rem;"></div>
+                            </div>
+                            <h5 class="text-info mb-3">🎨 Creating Your PDF</h5>
+                            <p class="text-muted mb-3">We're generating a beautiful, travel-friendly PDF with clean links and optimized formatting.</p>
+                        </div>
+                        <button class="btn btn-outline-primary btn-lg w-100 mb-2" onclick="checkPDFStatus()">
+                            <i class="fas fa-sync-alt me-2"></i>Check Status
+                        </button>
+                        <small class="text-muted">This usually takes 30-60 seconds</small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <h4>🔄 Generating Your Trip Plan</h4>
+        <p>We're creating a personalized itinerary for your trip to {{ trip_request.destination }}. This may take a few moments...</p>
+        <div class="progress">
+            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load location photos
+    loadLocationPhotos();
+});
+
+function loadLocationPhotos() {
+    // Extract location names from the trip content
+    const content = document.getElementById('enhanced-content');
+    if (!content) return;
+    
+    const text = content.textContent;
+    const locations = extractLocations(text);
+    
+    if (locations.length === 0) {
+        document.getElementById('location-photos-container').innerHTML = 
+            '<div class="no-photos">No specific locations detected in your itinerary for photo display.</div>';
+        return;
+    }
+    
+    // Fetch photos for each location
+    fetchLocationPhotos(locations);
+}
+
+function extractLocations(text) {
+    // Simple regex patterns to extract location names
+    const patterns = [
+        /(?:visit|go to|explore|see|at|near)\s+([A-Z][a-zA-Z\s]+(?:Museum|Park|Palace|Temple|Church|Cathedral|Market|Beach|Square|Tower|Bridge|Garden|Gallery|Stadium|Airport|Station|Restaurant|Café|Hotel))/gi,
+        /([A-Z][a-zA-Z\s]+(?:Museum|Park|Palace|Temple|Church|Cathedral|Market|Beach|Square|Tower|Bridge|Garden|Gallery|Stadium|Airport|Station))/gi
+    ];
+    
+    const locations = new Set();
+    patterns.forEach(pattern => {
+        const matches = text.match(pattern);
+        if (matches) {
+            matches.forEach(match => {
+                const cleaned = match.replace(/^(?:visit|go to|explore|see|at|near)\s+/i, '').trim();
+                if (cleaned.length > 3) {
+                    locations.add(cleaned);
+                }
+            });
+        }
+    });
+    
+    return Array.from(locations).slice(0, 10); // Limit to 10 locations
+}
+
+async function fetchLocationPhotos(locations) {
+    const container = document.getElementById('location-photos-container');
+    container.innerHTML = '';
+    
+    for (const location of locations) {
+        try {
+            // This would ideally fetch from your backend API that calls Google Places
+            // For now, we'll create a placeholder structure
+            const locationCard = createLocationCard(location);
+            container.appendChild(locationCard);
+            
+            // Simulate loading photos (you'd replace this with actual API calls)
+            setTimeout(() => {
+                loadPhotosForLocation(location, locationCard);
+            }, Math.random() * 2000 + 1000);
+            
+        } catch (error) {
+            console.error('Error loading photos for', location, error);
+        }
+    }
+}
+
+function createLocationCard(locationName) {
+    const card = document.createElement('div');
+    card.className = 'location-card';
+    card.innerHTML = `
+        <div class="location-content">
+            <div class="location-name">
+                📍 ${locationName}
+                <span class="loading-indicator">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                </span>
+            </div>
+            <div class="location-photos" id="photos-${locationName.replace(/\s+/g, '-')}">
+                <div class="no-photos">Loading photos...</div>
+            </div>
+            <a href="https://maps.google.com/?q=${encodeURIComponent(locationName + ', {{ trip_request.destination }}')}" 
+               class="maps-link" target="_blank">
+                🗺️ View on Google Maps
+            </a>
+        </div>
+    `;
+    return card;
+}
+
+async function loadPhotosForLocation(locationName, cardElement) {
+    const photosContainer = cardElement.querySelector(`#photos-${locationName.replace(/\s+/g, '-')}`);
+    
+    try {
+        // Fetch photos from your backend API
+        const response = await fetch(`/api/location-photos/?location=${encodeURIComponent(locationName)}&destination=${encodeURIComponent('{{ trip_request.destination }}')}`);
+        const data = await response.json();
+        
+        if (data.error) {
+            photosContainer.innerHTML = `<div class="no-photos">❌ ${data.error}</div>`;
+            return;
+        }
+        
+        if (!data.photos || data.photos.length === 0) {
+            photosContainer.innerHTML = `<div class="no-photos">📷 No photos available for ${locationName}</div>`;
+        } else {
+            // Display the photos from Google Places API
+            photosContainer.innerHTML = data.photos.map(photo => `
+                <div class="location-photo">
+                    <img src="${photo.url}" alt="${locationName}" loading="lazy" onerror="this.parentElement.style.display='none'">
+                    ${photo.attributions && photo.attributions.length > 0 ? `
+                        <div class="photo-attribution">${photo.attributions[0]}</div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+        
+        // Add location details if available
+        if (data.rating) {
+            const locationNameElement = cardElement.querySelector('.location-name');
+            locationNameElement.innerHTML += `<span class="location-rating">★ ${data.rating}</span>`;
+        }
+        
+    } catch (error) {
+        console.error('Error fetching photos for', locationName, error);
+        photosContainer.innerHTML = `<div class="no-photos">⚠️ Could not load photos for ${locationName}</div>`;
+    } finally {
+        // Remove loading indicator
+        const loadingIndicator = cardElement.querySelector('.loading-indicator');
+        if (loadingIndicator) {
+            loadingIndicator.remove();
+        }
+    }
+}
+
+// PDF Status Checking function
+function checkPDFStatus() {
+    const checkButton = event.target;
+    const originalText = checkButton.innerHTML;
+    
+    // Show loading state
+    checkButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Checking...';
+    checkButton.disabled = true;
+    
+    // Check if PDF is ready by making a simple GET request
+    fetch(`/trip_request/{{ trip_request.id }}/`, {
+        method: 'GET',
+        headers: {
+            'Cache-Control': 'no-cache'
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            // Refresh the page to show updated PDF status
+            window.location.reload();
+        } else {
+            throw new Error('Failed to check status');
+        }
+    })
+    .catch(error => {
+        console.error('Error checking PDF status:', error);
+        checkButton.innerHTML = originalText;
+        checkButton.disabled = false;
+        
+        // Show a friendly message
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-warning mt-2';
+        alertDiv.innerHTML = 'PDF generation is still in progress. Please try again in a moment.';
+        checkButton.parentElement.appendChild(alertDiv);
+        
+        // Remove alert after 3 seconds
+        setTimeout(() => {
+            if (alertDiv.parentElement) {
+                alertDiv.parentElement.removeChild(alertDiv);
+            }
+        }, 3000);
+    });
+}
+
+// Auto-refresh function for PDF generation status
+function autoCheckPDFStatus() {
+    // Only auto-check if PDF is not ready yet
+    {% if not plan.pdf_file %}
+    setTimeout(() => {
+        window.location.reload();
+    }, 45000); // Check again after 45 seconds
+    {% endif %}
+}
+
+// Start auto-checking when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    autoCheckPDFStatus();
+});
+</script>
+{% endblock %}
