@@ -20,6 +20,7 @@ urlpatterns = [
     path("profile/", ProfileView.as_view(), name="profile"),
     path("profile/edit/", EditProfileView.as_view(), name="edit_profile"),
     path("profile/picture/remove/", RemoveProfilePictureView.as_view(), name="remove_profile_picture"),
+    path("cost-dashboard/", CostDashboardView.as_view(), name="cost_dashboard"),
     
     # API endpoints
     path("api/trip-status/<int:trip_id>/", TripStatusAPIView.as_view(), name="trip_status"),
