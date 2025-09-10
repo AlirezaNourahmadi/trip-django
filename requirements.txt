@@ -2,7 +2,7 @@
 Django==5.1.6
 
 # Database
-psycopg2-binary==2.9.9
+psycopg2-binary>=2.9,<3
 
 # Image Processing
 Pillow==10.4.0
